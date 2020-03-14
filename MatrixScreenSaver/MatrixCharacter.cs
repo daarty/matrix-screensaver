@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace MatrixScreenSaver
+﻿namespace MatrixScreenSaver
 {
     public class MatrixCharacter
     {
@@ -33,9 +31,8 @@ namespace MatrixScreenSaver
         };
 
         public int Brush { get; set; } = 0;
-
         public char Character { get; set; } = ' ';
-        public DateTime CreationDate { get; set; } = DateTime.Now;
         public string Name { get; set; }
+        public int Speed { get; set; } = 0;
     }
 }

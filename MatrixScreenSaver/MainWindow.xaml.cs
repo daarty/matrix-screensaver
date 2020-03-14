@@ -31,18 +31,14 @@ using System.Windows.Media;
 
 namespace MatrixScreenSaver
 {
-    public class Coordinate
-    {
-        public int Column { get; set; }
-        public int Row { get; set; }
-    }
-
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
         private const int CharacterSize = 16;
+
+        private const int MaxSpeed = 20;
 
         private static readonly SolidColorBrush[] Brushes = new SolidColorBrush[]
            {
@@ -90,45 +86,60 @@ namespace MatrixScreenSaver
         private static Color CalculateColor(Color firstColor, Color secondColor, int percentOfFirstColor)
         {
             return Color.FromArgb(
-                (byte)(((int)firstColor.A * percentOfFirstColor + (int)secondColor.A * (100 - percentOfFirstColor)) / 100),
-                (byte)(((int)firstColor.R * percentOfFirstColor + (int)secondColor.R * (100 - percentOfFirstColor)) / 100),
-                (byte)(((int)firstColor.G * percentOfFirstColor + (int)secondColor.G * (100 - percentOfFirstColor)) / 100),
-                (byte)(((int)firstColor.B * percentOfFirstColor + (int)secondColor.B * (100 - percentOfFirstColor)) / 100));
+                (byte)((firstColor.A * percentOfFirstColor + secondColor.A * (100 - percentOfFirstColor)) / 100),
+                (byte)((firstColor.R * percentOfFirstColor + secondColor.R * (100 - percentOfFirstColor)) / 100),
+                (byte)((firstColor.G * percentOfFirstColor + secondColor.G * (100 - percentOfFirstColor)) / 100),
+                (byte)((firstColor.B * percentOfFirstColor + secondColor.B * (100 - percentOfFirstColor)) / 100));
         }
 
         private void CalculateNewCharacters(int column, int row, List<Coordinate> changedValues)
         {
             var thisCharacter = MatrixGrid[column, row];
 
-            for (int brush = 0; brush < Brushes.Length; brush++)
+            // No update if the minimal brush is already applied.
+            // Sometimes just don't update the current one, depending on the speed. So it gets "stuck" more often.
+            if (thisCharacter.Brush != 0 && random.Next(thisCharacter.Speed) != 0)
             {
-                if (random.Next(100) > 0 && brush > 0 && thisCharacter.Brush == brush)
+                thisCharacter.Brush--;
+
+                // If the character is still not on minimum colour, sometimes turn down one more.
+                if (thisCharacter.Brush != 0 && thisCharacter.Brush < Brushes.Length - 2 && random.Next(10) == 0)
                 {
                     thisCharacter.Brush--;
-
-                    if (thisCharacter.Brush > 0 &&
-                        ((thisCharacter.Brush < Brushes.Length - 2 && random.Next(10) == 0) ||
-                        random.Next(300) == 0))
-                    {
-                        thisCharacter.Brush--;
-                    }
-
-                    if (random.Next(3) > 0)
-                    {
-                        changedValues.Add(new Coordinate { Column = column, Row = row });
-                    }
                 }
 
-                // if white -> create next letter row + 1 if not last row
-                if (row > 0 && MatrixGrid[column, row - 1].Brush == Brushes.Length - 2)
+                // Sometimes simply don't update the color so it gets stuck on the screen.
+                if (random.Next(3) > 0)
                 {
-                    thisCharacter.Brush = Brushes.Length - 1;
-                    thisCharacter.Character = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
-
-                    OnPropertyChanged(nameof(thisCharacter));
-
                     changedValues.Add(new Coordinate { Column = column, Row = row });
                 }
+            }
+
+            // If not first row and
+            // if the letter above is one less than white -> create next letter in the current row
+            else if (row > 0 && MatrixGrid[column, row - 1].Brush == Brushes.Length - 2)
+            {
+                // If not in last row and at high speed, sometimes jump two blocks
+                if (row < rows - 1 && thisCharacter.Speed > MaxSpeed / 2 && random.Next(MaxSpeed - thisCharacter.Speed) == 0)
+                {
+                    var nextCharacter = MatrixGrid[column, row + 1];
+                    nextCharacter.Brush = Brushes.Length - 1;
+                    nextCharacter.Character = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
+                    nextCharacter.Speed = MatrixGrid[column, row - 1].Speed;
+
+                    changedValues.Add(new Coordinate { Column = column, Row = row + 1 });
+
+                    thisCharacter.Brush = Brushes.Length - 2;
+                }
+                else
+                {
+                    thisCharacter.Brush = Brushes.Length - 1;
+                }
+
+                thisCharacter.Character = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
+                thisCharacter.Speed = MatrixGrid[column, row - 1].Speed;
+
+                changedValues.Add(new Coordinate { Column = column, Row = row });
             }
         }
 
@@ -200,8 +211,7 @@ namespace MatrixScreenSaver
             {
                 MainGrid.Dispatcher.Invoke(action);
             }
-            catch (Exception ex)
-            //catch (TaskCancelledException ex)
+            catch (TaskCanceledException ex)
             {
                 Console.WriteLine("Caught Exception: " + ex.Message);
             }
@@ -240,13 +250,14 @@ namespace MatrixScreenSaver
                 //});
 
                 // Make new words not appear every time.
-                if (random.Next(5) > 0)
+                if (random.Next(3) == 0)
                 {
                     // create new running word
                     var newWordColumn = random.Next(columns - 1);
                     var newCharacter = MatrixGrid[newWordColumn, 0];
                     newCharacter.Brush = Brushes.Length - 1;
                     newCharacter.Character = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
+                    newCharacter.Speed = random.Next(MaxSpeed) + 1;
 
                     changedValues.Add(new Coordinate { Column = newWordColumn, Row = 0 });
                 }
