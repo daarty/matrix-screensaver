@@ -46,12 +46,15 @@ namespace MatrixScreenSaver
 
         private static readonly SolidColorBrush[] Brushes = new SolidColorBrush[]
            {
-                new SolidColorBrush(CalculateColor(Colors.Black, Colors.DarkGreen, 75)),
-                new SolidColorBrush(CalculateColor(Colors.Black, Colors.DarkGreen, 50)),
-                new SolidColorBrush(CalculateColor(Colors.Black, Colors.DarkGreen, 25)),
+                new SolidColorBrush(Colors.Black),
+                new SolidColorBrush(CalculateColor(Colors.Black, Colors.DarkGreen, 80)),
+                new SolidColorBrush(CalculateColor(Colors.Black, Colors.DarkGreen, 60)),
+                new SolidColorBrush(CalculateColor(Colors.Black, Colors.DarkGreen, 40)),
+                new SolidColorBrush(CalculateColor(Colors.Black, Colors.DarkGreen, 20)),
                 new SolidColorBrush(Colors.DarkGreen),
-                new SolidColorBrush(CalculateColor(Colors.Green, Colors.DarkGreen, 66)),
-                new SolidColorBrush(CalculateColor(Colors.Green, Colors.DarkGreen, 33)),
+                new SolidColorBrush(CalculateColor(Colors.Green, Colors.DarkGreen, 75)),
+                new SolidColorBrush(CalculateColor(Colors.Green, Colors.DarkGreen, 50)),
+                new SolidColorBrush(CalculateColor(Colors.Green, Colors.DarkGreen, 25)),
                 new SolidColorBrush(Colors.Green),
                 new SolidColorBrush(CalculateColor(Colors.Green, Colors.White, 70)),
                 new SolidColorBrush(CalculateColor(Colors.Green, Colors.White, 50)),
@@ -64,10 +67,7 @@ namespace MatrixScreenSaver
 
         private Random random = new Random();
         private int rows;
-        private TimeSpan timeSpan;
         private TimeSpan timeSpanExpected = new TimeSpan(0, 0, 0, 0, 66);
-        private DateTime timeStampFirst;
-        private DateTime timeStampSecond;
 
         public MainWindow()
         {
@@ -108,7 +108,7 @@ namespace MatrixScreenSaver
 
                     if (thisCharacter.Brush > 0 &&
                         ((thisCharacter.Brush < Brushes.Length - 2 && random.Next(10) == 0) ||
-                        random.Next(500) == 0))
+                        random.Next(300) == 0))
                     {
                         thisCharacter.Brush--;
                     }
@@ -214,6 +214,10 @@ namespace MatrixScreenSaver
 
         private void RunAnimation(List<Coordinate> changedValues)
         {
+            DateTime timeStampFirst;
+            DateTime timeStampSecond;
+            TimeSpan timeSpan;
+
             while (true)
             {
                 // Timer
@@ -236,7 +240,7 @@ namespace MatrixScreenSaver
                 //});
 
                 // Make new words not appear every time.
-                if (random.Next(5) > 2)
+                if (random.Next(5) > 0)
                 {
                     // create new running word
                     var newWordColumn = random.Next(columns - 1);
@@ -266,7 +270,7 @@ namespace MatrixScreenSaver
 
                 Console.WriteLine($"Run took {timeSpan} ms");
 
-                Thread.Sleep(Math.Max(0, (int)timeSpanExpected.Subtract(timeSpan).TotalMilliseconds));
+                Thread.Sleep(Math.Max(1, (int)timeSpanExpected.Subtract(timeSpan).TotalMilliseconds));
             }
         }
 
