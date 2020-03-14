@@ -46,8 +46,6 @@ namespace MatrixScreenSaver
 
         private static readonly SolidColorBrush[] Brushes = new SolidColorBrush[]
            {
-                //new SolidColorBrush(Colors.Black),
-                //new SolidColorBrush(Colors.DimGray),
                 new SolidColorBrush(CalculateColor(Colors.Black, Colors.DarkGreen, 75)),
                 new SolidColorBrush(CalculateColor(Colors.Black, Colors.DarkGreen, 50)),
                 new SolidColorBrush(CalculateColor(Colors.Black, Colors.DarkGreen, 25)),
@@ -55,17 +53,13 @@ namespace MatrixScreenSaver
                 new SolidColorBrush(CalculateColor(Colors.Green, Colors.DarkGreen, 66)),
                 new SolidColorBrush(CalculateColor(Colors.Green, Colors.DarkGreen, 33)),
                 new SolidColorBrush(Colors.Green),
-                //new SolidColorBrush(Colors.LightGreen),
                 new SolidColorBrush(CalculateColor(Colors.Green, Colors.White, 70)),
                 new SolidColorBrush(CalculateColor(Colors.Green, Colors.White, 50)),
                 new SolidColorBrush(CalculateColor(Colors.Green, Colors.White, 20)),
                 new SolidColorBrush(CalculateColor(Colors.Green, Colors.White, 10)),
-                //new SolidColorBrush(Colors.WhiteSmoke),
                 new SolidColorBrush(Colors.White)
            };
 
-        private static Action EmptyDelegate = delegate () { };
-        private static object locker = new object();
         private int columns;
 
         private Random random = new Random();
@@ -119,13 +113,8 @@ namespace MatrixScreenSaver
                         thisCharacter.Brush--;
                     }
 
-                    //thisCharacter.Foreground = Brushes[brush - 1];
-                    //InvokeUiAction(() => thisCharacter.Foreground = Brushes[thisCharacter.Brush]);
-                    //thisCharacter.HasChanged = true;
                     if (random.Next(3) > 0)
                     {
-                        // DEBUG ChangedValues
-                        //ChangedValues.Add(new Coordinate { Column = column, Row = row });
                         changedValues.Add(new Coordinate { Column = column, Row = row });
                     }
                 }
@@ -134,39 +123,20 @@ namespace MatrixScreenSaver
                 if (row > 0 && MatrixGrid[column, row - 1].Brush == Brushes.Length - 2)
                 {
                     thisCharacter.Brush = Brushes.Length - 1;
-                    //InvokeUiAction(() =>
-                    //    {
-                    //thisCharacter.Foreground = Brushes[thisCharacter.Brush];
-                    //thisCharacter.Brush = brush - 1;
                     thisCharacter.Character = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
 
-                    // DEBUG Binding
-                    //TextGrid[column, row].Dispatcher.Invoke(DispatcherPriority.Render, EmptyDelegate);
-                    //((TextBox)sender).GetBindingExpression(ComboBox.TextProperty).UpdateSource();
-                    //InvokeUiAction(() => TextGrid[column, row].GetBindingExpression(TextBlock.TextProperty).UpdateTarget());
-                    //OnPropertyChanged($"MatrixGridColumn{column}Row{row}");
                     OnPropertyChanged(nameof(thisCharacter));
 
-                    //});
-                    //thisCharacter.HasChanged = true;
-                    // DEBUG ChangedValues
                     changedValues.Add(new Coordinate { Column = column, Row = row });
                 }
-
-                //////thisCharacter.Dispatcher.Invoke(() =>
-                //////{
-                //////    if (thisCharacter.Foreground == Brushes[brush])
-                //////    {
-                //////        thisCharacter.Foreground = Brushes[brush - 1];
-                //////    }
-
-                //////    // if white -> create next letter row + 1 if not last row
-                //////});
             }
         }
 
         private void CreateScene()
         {
+            // Timer
+            var timeStampCreationFirst = DateTime.Now;
+
             columns = (int)Math.Ceiling(MainGrid.RenderSize.Width / CharacterSize);
             rows = (int)Math.Ceiling(MainGrid.RenderSize.Height / CharacterSize);
 
@@ -183,9 +153,6 @@ namespace MatrixScreenSaver
             MatrixGrid = new MatrixCharacter[columns, rows];
             TextGrid = new TextBlock[columns, rows];
 
-            // DEBUG
-            var timeStampCreationFirst = DateTime.Now;
-
             var random = new Random();
 
             for (int i = 0; i < columns; i++)
@@ -196,10 +163,6 @@ namespace MatrixScreenSaver
                     var thisCharacter = new MatrixCharacter();
                     MatrixGrid[i, j] = thisCharacter;
 
-                    // disable init values
-                    //thisCharacter.Brush = 0;
-                    //var newCharacter = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
-                    //thisCharacter.Character = newCharacter;
                     thisCharacter.Name = $"MatrixGridColumn{i}Row{j}";
 
                     // TextBlock
@@ -207,29 +170,14 @@ namespace MatrixScreenSaver
                     TextGrid[i, j] = thisTextBlock;
 
                     thisTextBlock.FontSize = CharacterSize * 0.75;
-                    //thisTextBlock.Margin = new Thickness(0);
-                    //thisTextBlock.Foreground = new SolidColorBrush(Colors.White);
-                    thisTextBlock.Foreground = Brushes[thisCharacter.Brush]; //new SolidColorBrush(Colors.White); //MatrixCharacter.FontBrushOld;
+                    thisTextBlock.Foreground = new SolidColorBrush(Colors.Black);
 
                     Grid.SetColumn(thisTextBlock, i);
                     Grid.SetRow(thisTextBlock, j);
 
                     MainGrid.Children.Add(thisTextBlock);
 
-                    //new Binding()
-                    //thisTextBlock.Text.DataBindings
-
-                    //make a new source
-                    //MyData myDataObject = new MyData(DateTime.Now);
-                    //Binding myBinding = new Binding("MyDataProperty");
-                    //myBinding.Source = myDataObject;
-                    //myText.SetBinding(TextBlock.TextProperty, myBinding);
-                    //
-
-                    // DEBUG Binding
-                    thisTextBlock.Name = $"TextGridColumn{i}Row{j}";
-
-                    Binding thisBinding = new Binding(); // new Binding($"MatrixGridColumn{i}Row{j}"); // new Binding($"MatrixGrid[{i},{j}]");
+                    var thisBinding = new Binding();
                     thisBinding.Source = MatrixGrid[i, j].Character;
                     thisTextBlock.SetBinding(TextBlock.TextProperty, thisBinding);
                 }
@@ -239,7 +187,6 @@ namespace MatrixScreenSaver
             var timeStampCreationSecond = DateTime.Now;
             var timeSpanCreation = (timeStampCreationSecond.Subtract(timeStampCreationFirst));
 
-            // DEBUG
             Console.WriteLine($"Creation took {timeSpanCreation} ms");
 
             // Every screen needs its own list
@@ -262,7 +209,6 @@ namespace MatrixScreenSaver
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // DEBUG
             CreateScene();
         }
 
@@ -270,129 +216,58 @@ namespace MatrixScreenSaver
         {
             while (true)
             {
-                // DEBUG
+                // Timer
                 timeStampFirst = DateTime.Now;
 
                 for (int column = 0; column < columns; column++)
                 {
-                    //    Parallel.For(0, columns - 1, column =>
-                    //{
-                    //MainGrid.Dispatcher.Invoke(() =>
-                    //{
-                    //lock (locker)
-                    //{
                     for (int row = 0; row < rows; row++)
                     {
                         CalculateNewCharacters(column, row, changedValues);
-
-                        //thisCharacter.Dispatcher.Invoke(DispatcherPriority.Render, EmptyDelegate);
                     }
-                    //});
-                    //}
-                    //});
                 }
 
-                // create new running word
-                var newWordColumn = random.Next(columns - 1);
-                var newCharacter = MatrixGrid[newWordColumn, 0];
-                newCharacter.Brush = Brushes.Length - 1;
-                newCharacter.Character = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
-                //newCharacter.HasChanged = true;
-                // DEBUG ChangedValues
-                changedValues.Add(new Coordinate { Column = newWordColumn, Row = 0 });
+                //Parallel.For(0, columns - 1, column =>
+                //{
+                //    for (int row = 0; row < rows; row++)
+                //    {
+                //        CalculateNewCharacters(column, row, changedValues);
+                //    }
+                //});
 
-                // Then set the TexBlocks in the UI thread
-                //var changedValuesCopy = new Coordinate[changedValues.Count];
-                //changedValues.CopyTo(changedValuesCopy);
-                //changedValues.Clear();
+                // Make new words not appear every time.
+                if (random.Next(5) > 2)
+                {
+                    // create new running word
+                    var newWordColumn = random.Next(columns - 1);
+                    var newCharacter = MatrixGrid[newWordColumn, 0];
+                    newCharacter.Brush = Brushes.Length - 1;
+                    newCharacter.Character = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
+
+                    changedValues.Add(new Coordinate { Column = newWordColumn, Row = 0 });
+                }
 
                 InvokeUiAction(() =>
                 {
                     Console.WriteLine("ChangedValues: " + changedValues.Count);
 
-                    //foreach (var coordinate in changedValuesCopy)
                     foreach (var coordinate in changedValues)
                     {
                         TextGrid[coordinate.Column, coordinate.Row].Text = MatrixGrid[coordinate.Column, coordinate.Row].Character.ToString();
                         TextGrid[coordinate.Column, coordinate.Row].Foreground = Brushes[MatrixGrid[coordinate.Column, coordinate.Row].Brush];
-                        //MatrixGrid[coordinate.Column, coordinate.Row].HasChanged = false;
-                        //ChangedValues.Add(new Coordinate { Column = column, Row = row });
                     }
 
-                    //ChangedValues.Clear();
                     changedValues.Clear();
-
-                    //for (int column = 0; column < columns; column++)
-                    //{
-                    //    for (int row = 0; row < rows; row++)
-                    //    {
-                    //        if (MatrixGrid[column, row].HasChanged)
-                    //        {
-                    //            textGrid[column, row].Text = MatrixGrid[column, row].Character.ToString();
-                    //            textGrid[column, row].Foreground = Brushes[MatrixGrid[column, row].Brush];
-                    //            MatrixGrid[column, row].HasChanged = false;
-                    //        }
-                    //    }
-                    //}
-
-                    //newCharacter.Foreground = Brushes[newCharacter.Brush];
                 });
 
                 // Timer
                 timeStampSecond = DateTime.Now;
-                timeSpan = (timeStampSecond.Subtract(timeStampFirst));
+                timeSpan = timeStampSecond.Subtract(timeStampFirst);
 
-                // DEBUG
                 Console.WriteLine($"Run took {timeSpan} ms");
 
-                // DEBUG ChangedValues
-                //MainGrid.Dispatcher.Invoke(DispatcherPriority.Render, EmptyDelegate);
-
-                //InvokeUiAction(() =>
-                //{
-                //    this.DataContext = null;
-                //    MainGrid.Dispatcher.Invoke(DispatcherPriority.Render, EmptyDelegate);
-                //    this.DataContext = this;
-                //    MainGrid.Dispatcher.Invoke(DispatcherPriority.Render, EmptyDelegate);
-                //});
-                //MainGrid.CommandBindings.up
-                //OnPropertyChanged(nameof(MainGrid));
-
-                //Thread.Sleep(10);
                 Thread.Sleep(Math.Max(0, (int)timeSpanExpected.Subtract(timeSpan).TotalMilliseconds));
             }
-
-            //var random = new Random();
-            //int thisExecutionColumn = random.Next(width - 1);
-
-            //while (true)
-            //{
-            //    bool createdNewThisRun = false;
-
-            //    for (int i = 0; i < height; i++)
-            //    {
-            //        var thisCharacter = MatrixGrid[thisExecutionColumn, i];
-
-            //        if (thisCharacter.Character != MatrixCharacter.EmptyChar)
-            //        {
-            //            thisCharacter.Brush = MatrixCharacter.CalculateBrush(thisCharacter);
-
-            //            if (thisCharacter.Brush == MatrixCharacter.FontBrushOld)
-            //            {
-            //                thisCharacter.Character = MatrixCharacter.EmptyChar;
-            //            }
-            //        }
-            //        else if (!createdNewThisRun)
-            //        {
-            //            if (random.Next(height) < 3)
-            //            {
-            //                thisCharacter.Character = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
-            //            }
-            //        }
-            //    }
-
-            //    Thread.Sleep(100);
-            //}
         }
 
         private void Window_KeyDown(object sender, KeyEventArgs e)
