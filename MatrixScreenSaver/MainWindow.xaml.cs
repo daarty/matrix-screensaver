@@ -64,7 +64,6 @@ namespace MatrixScreenSaver
                 new SolidColorBrush(Colors.White)
            };
 
-        private static readonly List<Coordinate> ChangedValues = new List<Coordinate>();
         private static Action EmptyDelegate = delegate () { };
         private static object locker = new object();
         private int columns;
@@ -103,7 +102,7 @@ namespace MatrixScreenSaver
                 (byte)(((int)firstColor.B * percentOfFirstColor + (int)secondColor.B * (100 - percentOfFirstColor)) / 100));
         }
 
-        private void CalculateNewCharacters(int column, int row)
+        private void CalculateNewCharacters(int column, int row, List<Coordinate> changedValues)
         {
             var thisCharacter = MatrixGrid[column, row];
 
@@ -127,6 +126,7 @@ namespace MatrixScreenSaver
                     {
                         // DEBUG ChangedValues
                         //ChangedValues.Add(new Coordinate { Column = column, Row = row });
+                        changedValues.Add(new Coordinate { Column = column, Row = row });
                     }
                 }
 
@@ -137,7 +137,8 @@ namespace MatrixScreenSaver
                     //InvokeUiAction(() =>
                     //    {
                     //thisCharacter.Foreground = Brushes[thisCharacter.Brush];
-                    thisCharacter.Character = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)].ToString();
+                    //thisCharacter.Brush = brush - 1;
+                    thisCharacter.Character = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
 
                     // DEBUG Binding
                     //TextGrid[column, row].Dispatcher.Invoke(DispatcherPriority.Render, EmptyDelegate);
@@ -149,7 +150,7 @@ namespace MatrixScreenSaver
                     //});
                     //thisCharacter.HasChanged = true;
                     // DEBUG ChangedValues
-                    //ChangedValues.Add(new Coordinate { Column = column, Row = row });
+                    changedValues.Add(new Coordinate { Column = column, Row = row });
                 }
 
                 //////thisCharacter.Dispatcher.Invoke(() =>
@@ -164,7 +165,7 @@ namespace MatrixScreenSaver
             }
         }
 
-        private void CreatePrototypeScene()
+        private void CreateScene()
         {
             columns = (int)Math.Ceiling(MainGrid.RenderSize.Width / CharacterSize);
             rows = (int)Math.Ceiling(MainGrid.RenderSize.Height / CharacterSize);
@@ -183,29 +184,28 @@ namespace MatrixScreenSaver
             TextGrid = new TextBlock[columns, rows];
 
             // DEBUG
+            var timeStampCreationFirst = DateTime.Now;
+
             var random = new Random();
 
             for (int i = 0; i < columns; i++)
             {
                 for (int j = 0; j < rows; j++)
                 {
-                    var newCharacter = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
-
                     // MatrixCharacter
                     var thisCharacter = new MatrixCharacter();
                     MatrixGrid[i, j] = thisCharacter;
 
-                    thisCharacter.Brush = 0;
-                    // DEBUG
-                    //thisCharacter.Character = "X";
-                    thisCharacter.Character = newCharacter.ToString();
+                    // disable init values
+                    //thisCharacter.Brush = 0;
+                    //var newCharacter = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
+                    //thisCharacter.Character = newCharacter;
                     thisCharacter.Name = $"MatrixGridColumn{i}Row{j}";
 
                     // TextBlock
                     var thisTextBlock = new TextBlock();
                     TextGrid[i, j] = thisTextBlock;
 
-                    //thisTextBlock.Text = "x";
                     thisTextBlock.FontSize = CharacterSize * 0.75;
                     //thisTextBlock.Margin = new Thickness(0);
                     //thisTextBlock.Foreground = new SolidColorBrush(Colors.White);
@@ -235,39 +235,16 @@ namespace MatrixScreenSaver
                 }
             }
 
-            Task.Run(() => RunPrototypeAnimation());
-        }
+            // Timer
+            var timeStampCreationSecond = DateTime.Now;
+            var timeSpanCreation = (timeStampCreationSecond.Subtract(timeStampCreationFirst));
 
-        private void DebugCreateScene()
-        {
-            var binding = new Binding(nameof(DebugGridBackgroundBrush));
-            MainGrid.SetBinding(Grid.BackgroundProperty, binding);
+            // DEBUG
+            Console.WriteLine($"Creation took {timeSpanCreation} ms");
 
-            OnPropertyChanged(nameof(DebugGridBackgroundBrush));
-
-            Task.Run(() =>
-            {
-                bool blub = false;
-                while (true)
-                {
-                    Task.Delay(500);
-
-                    if (blub)
-                    {
-                        DebugGridBackgroundBrush = new SolidColorBrush(Colors.Red);
-                        InvokeUiAction(() => OnPropertyChanged(nameof(DebugGridBackgroundBrush)));
-                    }
-                    else
-                    {
-                        DebugGridBackgroundBrush = new SolidColorBrush(Colors.Blue);
-                        InvokeUiAction(() => OnPropertyChanged(nameof(DebugGridBackgroundBrush)));
-                    }
-
-                    blub = !blub;
-                }
-            });
-            //DebugGridBackgroundBrush = new SolidColorBrush(Colors.Blue);
-            //OnPropertyChanged(nameof(MainGrid));
+            // Every screen needs its own list
+            var changedValues = new List<Coordinate>();
+            Task.Run(() => RunAnimation(changedValues));
         }
 
         private void InvokeUiAction(Action action)
@@ -286,11 +263,10 @@ namespace MatrixScreenSaver
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             // DEBUG
-            CreatePrototypeScene();
-            //DebugCreateScene();
+            CreateScene();
         }
 
-        private void RunPrototypeAnimation()
+        private void RunAnimation(List<Coordinate> changedValues)
         {
             while (true)
             {
@@ -307,7 +283,7 @@ namespace MatrixScreenSaver
                     //{
                     for (int row = 0; row < rows; row++)
                     {
-                        CalculateNewCharacters(column, row);
+                        CalculateNewCharacters(column, row, changedValues);
 
                         //thisCharacter.Dispatcher.Invoke(DispatcherPriority.Render, EmptyDelegate);
                     }
@@ -320,21 +296,22 @@ namespace MatrixScreenSaver
                 var newWordColumn = random.Next(columns - 1);
                 var newCharacter = MatrixGrid[newWordColumn, 0];
                 newCharacter.Brush = Brushes.Length - 1;
-                newCharacter.Character = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)].ToString();
+                newCharacter.Character = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
                 //newCharacter.HasChanged = true;
                 // DEBUG ChangedValues
-                ChangedValues.Add(new Coordinate { Column = newWordColumn, Row = 0 });
+                changedValues.Add(new Coordinate { Column = newWordColumn, Row = 0 });
 
                 // Then set the TexBlocks in the UI thread
-                var changedValuesCopy = new Coordinate[ChangedValues.Count];
-                ChangedValues.CopyTo(changedValuesCopy);
-                ChangedValues.Clear();
+                //var changedValuesCopy = new Coordinate[changedValues.Count];
+                //changedValues.CopyTo(changedValuesCopy);
+                //changedValues.Clear();
 
                 InvokeUiAction(() =>
                 {
-                    Console.WriteLine("ChangedValues: " + ChangedValues.Count);
+                    Console.WriteLine("ChangedValues: " + changedValues.Count);
 
-                    foreach (var coordinate in changedValuesCopy)
+                    //foreach (var coordinate in changedValuesCopy)
+                    foreach (var coordinate in changedValues)
                     {
                         TextGrid[coordinate.Column, coordinate.Row].Text = MatrixGrid[coordinate.Column, coordinate.Row].Character.ToString();
                         TextGrid[coordinate.Column, coordinate.Row].Foreground = Brushes[MatrixGrid[coordinate.Column, coordinate.Row].Brush];
@@ -343,6 +320,7 @@ namespace MatrixScreenSaver
                     }
 
                     //ChangedValues.Clear();
+                    changedValues.Clear();
 
                     //for (int column = 0; column < columns; column++)
                     //{
@@ -426,46 +404,5 @@ namespace MatrixScreenSaver
         {
             Application.Current.Shutdown();
         }
-    }
-
-    public class MatrixCharacter
-    {
-        //public static readonly Brush FontBrushDefault = new SolidColorBrush(Color.FromArgb(0xff, 0x1e, 0x91, 0x1c));
-        //public static readonly Brush FontBrushNew = new SolidColorBrush(Color.FromArgb(0xff, 0xff, 0xff, 0xff));
-        //public static readonly Brush FontBrushOld = new SolidColorBrush(Color.FromArgb(0xff, 0x00, 0x00, 0x00));
-
-        public static readonly char[] PoolOfCharacters =
-        {
-            // Latin
-            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-            // Cyrillic (?)
-            // Greek (?)
-            // Hiragana (?)
-            // Katakana
-            'ア', 'イ', 'ウ', 'エ', 'オ', 'カ', 'ガ', 'キ', 'ギ', 'ク', 'グ', 'ケ', 'ゲ', 'コ', 'ゴ', 'サ', 'ザ', 'シ', 'ジ', 'ス', 'ズ',
-            'セ', 'ゼ', 'ソ', 'ゾ', 'タ', 'ダ', 'チ', 'ヂ', 'ツ', 'ヅ', 'テ', 'デ', 'ト', 'ド', 'ナ', 'ニ', 'ヌ', 'ネ', 'ノ', 'ハ', 'バ', 'パ',
-            'ヒ', 'ビ', 'ピ', 'フ', 'ブ', 'プ', 'ヘ', 'ベ', 'ペ', 'ホ', 'ボ', 'ポ', 'マ', 'ミ', 'ム', 'メ', 'モ', 'ヤ', 'ユ', 'ヨ', 'ラ',
-            'リ', 'ル', 'レ', 'ロ', 'ワ', 'ヰ', 'ヱ', 'ヲ', 'ン', 'ヴ',
-            // Numbers
-            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-            // Signs
-            '!', '?', '.', ',', ';', ':', '(', ')', '[', ']', '{', '}',
-            '+', '-', '*', '/', '=',
-            '_', '#', '$', '%', '&', '~', '^'
-        };
-
-        //public Brush Brush { get; set; } = FontBrushOld;
-        public int Brush { get; set; } = 0;
-
-        public string Character { get; set; } = string.Empty;
-        public DateTime CreationDate { get; set; } = DateTime.Now;
-        public string Name { get; set; }
-        //public bool HasChanged { get; set; }
-
-        //public static Brush CalculateBrush(MatrixCharacter character)
-        //{
-        //    return FontBrushDefault;
-        //}
     }
 }
