@@ -36,8 +36,6 @@ namespace MatrixScreenSaver
     /// </summary>
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
-        private const int CharacterSize = 16;
-
         private const int MaxSpeed = 20;
 
         private static readonly SolidColorBrush[] Brushes = new SolidColorBrush[]
@@ -59,14 +57,24 @@ namespace MatrixScreenSaver
                 new SolidColorBrush(Colors.White)
            };
 
+        private readonly int characterSize;
+        private readonly char[] characterPool;
+
+        // Chance per column and frame to start a new drop.
+        private readonly double newDropProbability;
+
         private int columns;
 
         private Random random = new Random();
         private int rows;
         private TimeSpan timeSpanExpected = new TimeSpan(0, 0, 0, 0, 66);
 
-        public MainWindow()
+        public MainWindow(ScreenSaverSettings settings)
         {
+            characterSize = settings.CharacterSize;
+            characterPool = MatrixCharacter.CreatePool(settings.CharacterSets);
+            newDropProbability = settings.Density * timeSpanExpected.TotalMilliseconds / TimeSpan.FromMinutes(1).TotalMilliseconds;
+
             InitializeComponent();
             this.Loaded += MainWindow_Loaded;
             this.DataContext = this;
@@ -124,7 +132,7 @@ namespace MatrixScreenSaver
                 {
                     var nextCharacter = MatrixGrid[column, row + 1];
                     nextCharacter.Brush = Brushes.Length - 1;
-                    nextCharacter.Character = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
+                    nextCharacter.Character = RandomCharacter();
                     nextCharacter.Speed = MatrixGrid[column, row - 1].Speed;
 
                     changedValues.Add(new Coordinate { Column = column, Row = row + 1 });
@@ -136,7 +144,7 @@ namespace MatrixScreenSaver
                     thisCharacter.Brush = Brushes.Length - 1;
                 }
 
-                thisCharacter.Character = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
+                thisCharacter.Character = RandomCharacter();
                 thisCharacter.Speed = MatrixGrid[column, row - 1].Speed;
 
                 changedValues.Add(new Coordinate { Column = column, Row = row });
@@ -148,17 +156,17 @@ namespace MatrixScreenSaver
             // Timer
             var timeStampCreationFirst = DateTime.Now;
 
-            columns = (int)Math.Ceiling(MainGrid.RenderSize.Width / CharacterSize);
-            rows = (int)Math.Ceiling(MainGrid.RenderSize.Height / CharacterSize);
+            columns = (int)Math.Ceiling(MainGrid.RenderSize.Width / characterSize);
+            rows = (int)Math.Ceiling(MainGrid.RenderSize.Height / characterSize);
 
             for (int i = 0; i < columns; i++)
             {
-                MainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(CharacterSize) });
+                MainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(characterSize) });
             }
 
             for (int i = 0; i < rows; i++)
             {
-                MainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(CharacterSize) });
+                MainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(characterSize) });
             }
 
             MatrixGrid = new MatrixCharacter[columns, rows];
@@ -180,7 +188,7 @@ namespace MatrixScreenSaver
                     var thisTextBlock = new TextBlock();
                     TextGrid[i, j] = thisTextBlock;
 
-                    thisTextBlock.FontSize = CharacterSize * 0.75;
+                    thisTextBlock.FontSize = characterSize * 0.75;
                     thisTextBlock.Foreground = new SolidColorBrush(Colors.Black);
 
                     Grid.SetColumn(thisTextBlock, i);
@@ -249,17 +257,17 @@ namespace MatrixScreenSaver
                 //    }
                 //});
 
-                // Make new words not appear every time.
-                if (random.Next(3) == 0)
+                for (int column = 0; column < columns; column++)
                 {
-                    // create new running word
-                    var newWordColumn = random.Next(columns - 1);
-                    var newCharacter = MatrixGrid[newWordColumn, 0];
-                    newCharacter.Brush = Brushes.Length - 1;
-                    newCharacter.Character = MatrixCharacter.PoolOfCharacters[random.Next(MatrixCharacter.PoolOfCharacters.Length - 1)];
-                    newCharacter.Speed = random.Next(MaxSpeed) + 1;
+                    if (random.NextDouble() < newDropProbability)
+                    {
+                        var newCharacter = MatrixGrid[column, 0];
+                        newCharacter.Brush = Brushes.Length - 1;
+                        newCharacter.Character = RandomCharacter();
+                        newCharacter.Speed = random.Next(MaxSpeed) + 1;
 
-                    changedValues.Add(new Coordinate { Column = newWordColumn, Row = 0 });
+                        changedValues.Add(new Coordinate { Column = column, Row = 0 });
+                    }
                 }
 
                 InvokeUiAction(() =>
@@ -283,6 +291,11 @@ namespace MatrixScreenSaver
 
                 Thread.Sleep(Math.Max(1, (int)timeSpanExpected.Subtract(timeSpan).TotalMilliseconds));
             }
+        }
+
+        private char RandomCharacter()
+        {
+            return characterPool[random.Next(characterPool.Length)];
         }
 
         private void Window_KeyDown(object sender, KeyEventArgs e)

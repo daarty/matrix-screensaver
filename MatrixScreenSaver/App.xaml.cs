@@ -39,6 +39,7 @@ namespace MatrixScreenSaver
         {
             // Without arguments Windows wants the settings, e.g. from "Configure" in the context menu of the .scr.
             string mode = e.Args.Length == 0 ? "/c" : e.Args[0].ToLowerInvariant();
+            ScreenSaverSettings settings = ScreenSaverSettings.Load();
 
             if (mode.StartsWith("/s"))
             {
@@ -46,7 +47,7 @@ namespace MatrixScreenSaver
                 {
                     //if (s != Screen.PrimaryScreen)
 
-                    MainWindow window = new MainWindow();
+                    MainWindow window = new MainWindow(settings);
 
                     // Screen.Bounds is in pixels, WPF positions windows in device independent units.
                     DpiScale dpi = VisualTreeHelper.GetDpi(window);
@@ -62,7 +63,7 @@ namespace MatrixScreenSaver
             }
             else if (mode.StartsWith("/p"))
             {
-                MainWindow window = new MainWindow();
+                MainWindow window = new MainWindow(settings);
                 Int32 previewHandle = Convert.ToInt32(e.Args[1]);
                 IntPtr pPreviewHnd = new IntPtr(previewHandle);
                 RECT lpRect = new RECT();
@@ -83,16 +84,16 @@ namespace MatrixScreenSaver
             }
             else if (mode.StartsWith("/c"))
             {
-                SettingsWindow settings = new SettingsWindow();
+                SettingsWindow settingsWindow = new SettingsWindow(settings);
 
                 // The Screen Saver Settings dialog passes its handle as "/c:1234" and expects a modal child.
                 if (mode.StartsWith("/c:") && long.TryParse(mode.Substring(3), out long parentHandle))
                 {
-                    new WindowInteropHelper(settings).Owner = new IntPtr(parentHandle);
-                    settings.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                    new WindowInteropHelper(settingsWindow).Owner = new IntPtr(parentHandle);
+                    settingsWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
                 }
 
-                settings.ShowDialog();
+                settingsWindow.ShowDialog();
             }
         }
     }
