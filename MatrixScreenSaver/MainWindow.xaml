@@ -28,6 +28,7 @@
         MouseDown="Window_MouseDown"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
+        Topmost="True"
         WindowStyle="None">
     <Grid x:Name="MainGrid" />
 </Window>

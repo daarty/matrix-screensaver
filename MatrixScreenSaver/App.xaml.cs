@@ -43,10 +43,10 @@ namespace MatrixScreenSaver
                     //if (s != Screen.PrimaryScreen)
 
                     MainWindow window = new MainWindow();
-                    window.Left = s.WorkingArea.Left;
-                    window.Top = s.WorkingArea.Top;
-                    window.Width = s.WorkingArea.Width;
-                    window.Height = s.WorkingArea.Height;
+                    window.Left = s.Bounds.Left;
+                    window.Top = s.Bounds.Top;
+                    window.Width = s.Bounds.Width;
+                    window.Height = s.Bounds.Height;
                     window.Show();
                 }
             }
