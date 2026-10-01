@@ -22,6 +22,7 @@ using System;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Interop;
+using System.Windows.Media;
 using WaveSim;
 using Application = System.Windows.Application;
 
@@ -36,21 +37,30 @@ namespace MatrixScreenSaver
 
         private void ApplicationStartup(object sender, StartupEventArgs e)
         {
-            if (e.Args.Length == 0 || e.Args[0].ToLower().StartsWith("/s"))
+            // Without arguments Windows wants the settings, e.g. from "Configure" in the context menu of the .scr.
+            string mode = e.Args.Length == 0 ? "/c" : e.Args[0].ToLowerInvariant();
+
+            if (mode.StartsWith("/s"))
             {
                 foreach (Screen s in Screen.AllScreens)
                 {
                     //if (s != Screen.PrimaryScreen)
 
                     MainWindow window = new MainWindow();
-                    window.Left = s.Bounds.Left;
-                    window.Top = s.Bounds.Top;
-                    window.Width = s.Bounds.Width;
-                    window.Height = s.Bounds.Height;
+
+                    // Screen.Bounds is in pixels, WPF positions windows in device independent units.
+                    DpiScale dpi = VisualTreeHelper.GetDpi(window);
+                    window.Left = s.Bounds.Left / dpi.DpiScaleX;
+                    window.Top = s.Bounds.Top / dpi.DpiScaleY;
+                    window.Width = s.Bounds.Width / dpi.DpiScaleX;
+                    window.Height = s.Bounds.Height / dpi.DpiScaleY;
+
+                    // Maximizing fits the window exactly to its monitor, even if that monitor has a different scaling.
+                    window.WindowState = WindowState.Maximized;
                     window.Show();
                 }
             }
-            else if (e.Args[0].ToLower().StartsWith("/p"))
+            else if (mode.StartsWith("/p"))
             {
                 MainWindow window = new MainWindow();
                 Int32 previewHandle = Convert.ToInt32(e.Args[1]);
@@ -71,8 +81,18 @@ namespace MatrixScreenSaver
                 winWPFContent.Disposed += (o, args) => window.Close();
                 winWPFContent.RootVisual = window.MainGrid;
             }
-            else if (e.Args[0].ToLower().StartsWith("/c"))
+            else if (mode.StartsWith("/c"))
             {
+                SettingsWindow settings = new SettingsWindow();
+
+                // The Screen Saver Settings dialog passes its handle as "/c:1234" and expects a modal child.
+                if (mode.StartsWith("/c:") && long.TryParse(mode.Substring(3), out long parentHandle))
+                {
+                    new WindowInteropHelper(settings).Owner = new IntPtr(parentHandle);
+                    settings.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                }
+
+                settings.ShowDialog();
             }
         }
     }
