@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Screensaver": {
+      "commandName": "Project",
+      "commandLineArgs": "/s"
+    },
+    "Settings": {
+      "commandName": "Project",
+      "commandLineArgs": "/c"
+    }
+  }
+}
