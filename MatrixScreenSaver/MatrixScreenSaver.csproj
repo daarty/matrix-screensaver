@@ -17,4 +17,9 @@
     <Version>1.0.0</Version>
   </PropertyGroup>
 
+  <!-- Windows only offers .scr files as screensavers. -->
+  <Target Name="CopyAsScreenSaver" AfterTargets="Publish">
+    <Copy SourceFiles="$(PublishDir)$(AssemblyName).exe" DestinationFiles="$(PublishDir)$(AssemblyName).scr" />
+  </Target>
+
 </Project>
