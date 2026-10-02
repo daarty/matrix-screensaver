@@ -1,3 +1,4 @@
+using System;
 using System.Windows.Media;
 
 namespace MatrixScreenSaver
@@ -7,8 +8,12 @@ namespace MatrixScreenSaver
         // Brightness levels of a character, from the black background up to the white head of a drop.
         public const int Size = 15;
 
+        public static readonly Color DefaultBaseColor = Colors.Green;
+
         public static Color[] Create(Color baseColor)
         {
+            baseColor = Normalize(baseColor);
+
             // Darker by the ratio of Colors.DarkGreen (0, 100, 0) to Colors.Green (0, 128, 0).
             Color darkColor = Color.FromRgb(
                 (byte)(baseColor.R * 100 / 128),
@@ -33,6 +38,43 @@ namespace MatrixScreenSaver
                 Mix(baseColor, Colors.White, 10),
                 Colors.White,
             };
+        }
+
+        /// <param name="hue">Degrees on the color wheel, 0 is red, 120 green, 240 blue.</param>
+        public static Color FromHue(double hue)
+        {
+            hue = (hue % 360 + 360) % 360;
+            double x = 1 - Math.Abs(hue / 60 % 2 - 1);
+
+            (double r, double g, double b) = (int)(hue / 60) switch
+            {
+                0 => (1d, x, 0d),
+                1 => (x, 1d, 0d),
+                2 => (0d, 1d, x),
+                3 => (0d, x, 1d),
+                4 => (x, 0d, 1d),
+                _ => (1d, 0d, x),
+            };
+
+            return Color.FromRgb((byte)Math.Round(r * 255), (byte)Math.Round(g * 255), (byte)Math.Round(b * 255));
+        }
+
+        // Only hue and saturation count: the brightest channel is scaled to that of Colors.Green,
+        // so every color keeps the dark trails and the white heads of the classic palette.
+        private static Color Normalize(Color color)
+        {
+            int brightest = Math.Max(color.R, Math.Max(color.G, color.B));
+
+            if (brightest == 0)
+            {
+                return DefaultBaseColor;
+            }
+
+            int target = DefaultBaseColor.G;
+            return Color.FromRgb(
+                (byte)(color.R * target / brightest),
+                (byte)(color.G * target / brightest),
+                (byte)(color.B * target / brightest));
         }
 
         private static Color Mix(Color firstColor, Color secondColor, int percentOfFirstColor)

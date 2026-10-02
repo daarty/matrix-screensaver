@@ -76,6 +76,8 @@ namespace MatrixScreenSaver
                     CharacterSize = ScreenSaverSettings.MinCharacterSize,
                     CharacterSets = settings.CharacterSets,
                     Density = settings.Density,
+                    ColorMode = settings.ColorMode,
+                    BaseColor = settings.BaseColor,
                 };
 
                 IntPtr pPreviewHnd = new IntPtr(previewHandle);

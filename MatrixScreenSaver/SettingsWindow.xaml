@@ -33,6 +33,34 @@
         <TextBlock Margin="0,16,0,4" Text="Character sets" />
         <WrapPanel x:Name="CharacterSetPanel" />
 
+        <TextBlock Margin="0,16,0,4" Text="Colors" />
+        <DockPanel>
+            <Button x:Name="ColorButton"
+                    Width="80"
+                    Click="ColorButtonClick"
+                    Content="Choose..."
+                    DockPanel.Dock="Right" />
+            <RadioButton x:Name="SingleColorRadio"
+                         VerticalAlignment="Center"
+                         Checked="ColorModeChecked"
+                         Content="One color"
+                         GroupName="ColorMode" />
+        </DockPanel>
+        <RadioButton x:Name="ColorCycleRadio"
+                     Margin="0,4,0,0"
+                     Checked="ColorModeChecked"
+                     Content="Cycle through all colors"
+                     GroupName="ColorMode" />
+        <RadioButton x:Name="RainbowDropsRadio"
+                     Margin="0,4,0,0"
+                     Checked="ColorModeChecked"
+                     Content="Every drop in its own color"
+                     GroupName="ColorMode" />
+        <UniformGrid x:Name="ColorPreview"
+                     Height="16"
+                     Margin="0,8,0,0"
+                     Rows="1" />
+
         <StackPanel Margin="0,16,0,0"
                     HorizontalAlignment="Right"
                     Orientation="Horizontal">

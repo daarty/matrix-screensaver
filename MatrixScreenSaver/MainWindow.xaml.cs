@@ -20,7 +20,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -40,11 +42,23 @@ namespace MatrixScreenSaver
 
         private const double FlashDropProbability = 0.02;
 
+        private const int RainbowHues = 24;
+
+        private const double ColorCycleSeconds = 60;
+
+        // Recomputing the palette means redrawing every visible character, so it happens every few frames only.
+        private const int ColorCycleFrames = 8;
+
+        // Hue of Colors.Green, where the color cycle starts.
+        private const double GreenHue = 120;
+
         // In screen pixels.
         private const double MouseMoveTolerance = 10;
 
-        // Pixel value for each palette level and glyph coverage (0-255), blended over the black background.
-        private readonly int[] colorTable;
+        private readonly ColorMode colorMode;
+
+        // Pixel value for each palette, level and glyph coverage (0-255), blended over the black background.
+        private int[] colorTable;
 
         private readonly int characterSize;
         private readonly char[] characterPool;
@@ -73,7 +87,15 @@ namespace MatrixScreenSaver
         {
             characterSize = settings.CharacterSize;
             characterPool = MatrixCharacter.CreatePool(settings.CharacterSets);
-            colorTable = CreateColorTable(ColorPalette.Create(Colors.Green));
+            colorMode = settings.ColorMode;
+            colorTable = colorMode switch
+            {
+                ColorMode.ColorCycle => CreateColorTable(ColorPalette.Create(ColorPalette.FromHue(GreenHue))),
+                ColorMode.RainbowDrops => CreateColorTable(Enumerable.Range(0, RainbowHues)
+                    .Select(i => ColorPalette.Create(ColorPalette.FromHue(GreenHue + i * 360.0 / RainbowHues)))
+                    .ToArray()),
+                _ => CreateColorTable(ColorPalette.Create(settings.BaseColorValue)),
+            };
             newDropProbability = settings.Density * timeSpanExpected.TotalMilliseconds / TimeSpan.FromMinutes(1).TotalMilliseconds;
 
             InitializeComponent();
@@ -85,18 +107,22 @@ namespace MatrixScreenSaver
 
         public MatrixCharacter[,] MatrixGrid { get; private set; }
 
-        private static int[] CreateColorTable(Color[] palette)
+        private static int[] CreateColorTable(params Color[][] palettes)
         {
-            var table = new int[palette.Length * 256];
+            var table = new int[palettes.Length * ColorPalette.Size * 256];
 
-            for (int level = 0; level < palette.Length; level++)
+            for (int palette = 0; palette < palettes.Length; palette++)
             {
-                Color color = palette[level];
-
-                for (int coverage = 0; coverage < 256; coverage++)
+                for (int level = 0; level < ColorPalette.Size; level++)
                 {
-                    table[level * 256 + coverage] =
-                        (color.R * coverage / 255) << 16 | (color.G * coverage / 255) << 8 | (color.B * coverage / 255);
+                    Color color = palettes[palette][level];
+                    int offset = (palette * ColorPalette.Size + level) * 256;
+
+                    for (int coverage = 0; coverage < 256; coverage++)
+                    {
+                        table[offset + coverage] =
+                            (color.R * coverage / 255) << 16 | (color.G * coverage / 255) << 8 | (color.B * coverage / 255);
+                    }
                 }
             }
 
@@ -142,6 +168,7 @@ namespace MatrixScreenSaver
                     nextCharacter.Character = RandomCharacter();
                     nextCharacter.Speed = dropAbove.Speed;
                     nextCharacter.IsFlash = dropAbove.IsFlash;
+                    nextCharacter.Palette = dropAbove.Palette;
 
                     changedValues.Add(new Coordinate { Column = column, Row = row + 1 });
 
@@ -158,6 +185,7 @@ namespace MatrixScreenSaver
                 thisCharacter.Character = RandomCharacter();
                 thisCharacter.Speed = dropAbove.Speed;
                 thisCharacter.IsFlash = dropAbove.IsFlash;
+                thisCharacter.Palette = dropAbove.Palette;
 
                 changedValues.Add(new Coordinate { Column = column, Row = row });
             }
@@ -259,7 +287,7 @@ namespace MatrixScreenSaver
         private unsafe void DrawCell(byte* backBuffer, int stride, int column, int row)
         {
             MatrixCharacter character = MatrixGrid[column, row];
-            int colorOffset = character.Brush * 256;
+            int colorOffset = (character.Palette * ColorPalette.Size + character.Brush) * 256;
             int maskOffset = glyphIndices.TryGetValue(character.Character, out int glyph) ? glyph * cellPixels * cellPixels : -1;
 
             for (int y = 0; y < cellPixels; y++)
@@ -273,9 +301,10 @@ namespace MatrixScreenSaver
             }
         }
 
-        private unsafe void DrawChangedCells(List<Coordinate> changedValues)
+        /// <param name="redrawAll">Draw every visible character again, because the colors changed.</param>
+        private unsafe void DrawChangedCells(List<Coordinate> changedValues, bool redrawAll)
         {
-            if (changedValues.Count == 0)
+            if (changedValues.Count == 0 && !redrawAll)
             {
                 return;
             }
@@ -287,6 +316,22 @@ namespace MatrixScreenSaver
             try
             {
                 byte* backBuffer = (byte*)bitmap.BackBuffer;
+
+                if (redrawAll)
+                {
+                    // Also the black cells: some faded out without being drawn again and still show an old color.
+                    for (int column = 0; column < columns; column++)
+                    {
+                        for (int row = 0; row < rows; row++)
+                        {
+                            DrawCell(backBuffer, bitmap.BackBufferStride, column, row);
+                        }
+                    }
+
+                    firstColumn = firstRow = 0;
+                    lastColumn = columns - 1;
+                    lastRow = rows - 1;
+                }
 
                 foreach (var coordinate in changedValues)
                 {
@@ -340,6 +385,8 @@ namespace MatrixScreenSaver
             DateTime timeStampFirst;
             DateTime timeStampSecond;
             TimeSpan timeSpan;
+            Stopwatch colorCycleClock = Stopwatch.StartNew();
+            int frame = 0;
 
             while (true)
             {
@@ -372,11 +419,20 @@ namespace MatrixScreenSaver
                     }
                 }
 
+                bool colorsChanged = false;
+
+                if (colorMode == ColorMode.ColorCycle && ++frame % ColorCycleFrames == 0)
+                {
+                    double hue = GreenHue + colorCycleClock.Elapsed.TotalSeconds * 360 / ColorCycleSeconds;
+                    colorTable = CreateColorTable(ColorPalette.Create(ColorPalette.FromHue(hue)));
+                    colorsChanged = true;
+                }
+
                 InvokeUiAction(() =>
                 {
                     Console.WriteLine("ChangedValues: " + changedValues.Count);
 
-                    DrawChangedCells(changedValues);
+                    DrawChangedCells(changedValues, colorsChanged);
 
                     changedValues.Clear();
                 });
@@ -398,6 +454,7 @@ namespace MatrixScreenSaver
             newCharacter.Character = RandomCharacter();
             newCharacter.IsFlash = random.NextDouble() < FlashDropProbability;
             newCharacter.Speed = newCharacter.IsFlash ? MaxSpeed : random.Next(MaxSpeed) + 1;
+            newCharacter.Palette = colorMode == ColorMode.RainbowDrops ? random.Next(RainbowHues) : 0;
 
             changedValues.Add(new Coordinate { Column = column, Row = row });
         }

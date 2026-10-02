@@ -55,6 +55,9 @@ namespace MatrixScreenSaver
         // A flash drop runs down the whole screen within a frame or two.
         public bool IsFlash { get; set; }
 
+        // Index of the palette the drop is drawn with.
+        public int Palette { get; set; }
+
         public static char[] CreatePool(CharacterSets sets)
         {
             return CharactersBySet.Where(pair => sets.HasFlag(pair.Key)).SelectMany(pair => pair.Value).ToArray();
