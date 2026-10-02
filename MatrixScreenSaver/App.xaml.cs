@@ -61,8 +61,24 @@ namespace MatrixScreenSaver
             }
             else if (mode.StartsWith("/p"))
             {
-                MainWindow window = new MainWindow(settings);
-                Int32 previewHandle = Convert.ToInt32(e.Args[1]);
+                // Windows passes the handle of the preview area as "/p 1234", some other programs as "/p:1234".
+                string handleText = mode.StartsWith("/p:") ? mode.Substring(3) : e.Args.Length > 1 ? e.Args[1] : null;
+
+                if (!long.TryParse(handleText, out long previewHandle))
+                {
+                    Shutdown();
+                    return;
+                }
+
+                // The preview area is tiny, so it shows the smallest characters.
+                var previewSettings = new ScreenSaverSettings
+                {
+                    CharacterSize = ScreenSaverSettings.MinCharacterSize,
+                    CharacterSets = settings.CharacterSets,
+                    Density = settings.Density,
+                };
+
+                MainWindow window = new MainWindow(previewSettings);
                 IntPtr pPreviewHnd = new IntPtr(previewHandle);
                 RECT lpRect = new RECT();
                 Win32API.GetClientRect(pPreviewHnd, ref lpRect);
@@ -77,7 +93,8 @@ namespace MatrixScreenSaver
                 sourceParams.WindowStyle = (int)(WindowStyles.WS_VISIBLE | WindowStyles.WS_CHILD | WindowStyles.WS_CLIPCHILDREN);
 
                 winWPFContent = new HwndSource(sourceParams);
-                winWPFContent.Disposed += (o, args) => window.Close();
+                // Windows destroys the preview area when the dialog closes or another screensaver is selected.
+                winWPFContent.Disposed += (o, args) => Shutdown();
                 winWPFContent.RootVisual = window.MainGrid;
             }
             else if (mode.StartsWith("/c"))

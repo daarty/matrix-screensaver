@@ -96,6 +96,9 @@ namespace MatrixScreenSaver
 
             InitializeComponent();
             this.Loaded += MainWindow_Loaded;
+
+            // The preview shows only the grid, without the window, so the grid starts the animation.
+            MainGrid.Loaded += MainGrid_Loaded;
         }
 
         public MatrixCharacter[,] MatrixGrid { get; private set; }
@@ -350,6 +353,10 @@ namespace MatrixScreenSaver
         {
             // Takes the keyboard focus where Windows allows it, e.g. when Windows starts the screensaver itself.
             Activate();
+        }
+
+        private void MainGrid_Loaded(object sender, RoutedEventArgs e)
+        {
             CreateScene();
         }
 

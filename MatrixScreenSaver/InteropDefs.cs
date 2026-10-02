@@ -23,13 +23,14 @@ using System.Runtime.InteropServices;
 
 namespace WaveSim
 {
-    //[Serializable, StructLayout(LayoutKind.Sequential)]
+    // The field order must match the Win32 RECT.
+    [StructLayout(LayoutKind.Sequential)]
     public struct RECT
     {
-        public int Bottom;
         public int Left;
-        public int Right;
         public int Top;
+        public int Right;
+        public int Bottom;
     }
 
     public class Win32API
