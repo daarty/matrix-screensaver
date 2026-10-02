@@ -43,27 +43,8 @@ namespace MatrixScreenSaver
         // In screen pixels.
         private const double MouseMoveTolerance = 10;
 
-        private static readonly SolidColorBrush[] Brushes = new SolidColorBrush[]
-           {
-                new SolidColorBrush(Colors.Black),
-                new SolidColorBrush(CalculateColor(Colors.Black, Colors.DarkGreen, 80)),
-                new SolidColorBrush(CalculateColor(Colors.Black, Colors.DarkGreen, 60)),
-                new SolidColorBrush(CalculateColor(Colors.Black, Colors.DarkGreen, 40)),
-                new SolidColorBrush(CalculateColor(Colors.Black, Colors.DarkGreen, 20)),
-                new SolidColorBrush(Colors.DarkGreen),
-                new SolidColorBrush(CalculateColor(Colors.Green, Colors.DarkGreen, 75)),
-                new SolidColorBrush(CalculateColor(Colors.Green, Colors.DarkGreen, 50)),
-                new SolidColorBrush(CalculateColor(Colors.Green, Colors.DarkGreen, 25)),
-                new SolidColorBrush(Colors.Green),
-                new SolidColorBrush(CalculateColor(Colors.Green, Colors.White, 70)),
-                new SolidColorBrush(CalculateColor(Colors.Green, Colors.White, 50)),
-                new SolidColorBrush(CalculateColor(Colors.Green, Colors.White, 20)),
-                new SolidColorBrush(CalculateColor(Colors.Green, Colors.White, 10)),
-                new SolidColorBrush(Colors.White)
-           };
-
-        // Pixel value for each brush and glyph coverage (0-255), blended over the black background.
-        private static readonly int[] ColorTable = CreateColorTable();
+        // Pixel value for each palette level and glyph coverage (0-255), blended over the black background.
+        private readonly int[] colorTable;
 
         private readonly int characterSize;
         private readonly char[] characterPool;
@@ -92,6 +73,7 @@ namespace MatrixScreenSaver
         {
             characterSize = settings.CharacterSize;
             characterPool = MatrixCharacter.CreatePool(settings.CharacterSets);
+            colorTable = CreateColorTable(ColorPalette.Create(Colors.Green));
             newDropProbability = settings.Density * timeSpanExpected.TotalMilliseconds / TimeSpan.FromMinutes(1).TotalMilliseconds;
 
             InitializeComponent();
@@ -103,26 +85,17 @@ namespace MatrixScreenSaver
 
         public MatrixCharacter[,] MatrixGrid { get; private set; }
 
-        private static Color CalculateColor(Color firstColor, Color secondColor, int percentOfFirstColor)
+        private static int[] CreateColorTable(Color[] palette)
         {
-            return Color.FromArgb(
-                (byte)((firstColor.A * percentOfFirstColor + secondColor.A * (100 - percentOfFirstColor)) / 100),
-                (byte)((firstColor.R * percentOfFirstColor + secondColor.R * (100 - percentOfFirstColor)) / 100),
-                (byte)((firstColor.G * percentOfFirstColor + secondColor.G * (100 - percentOfFirstColor)) / 100),
-                (byte)((firstColor.B * percentOfFirstColor + secondColor.B * (100 - percentOfFirstColor)) / 100));
-        }
+            var table = new int[palette.Length * 256];
 
-        private static int[] CreateColorTable()
-        {
-            var table = new int[Brushes.Length * 256];
-
-            for (int brush = 0; brush < Brushes.Length; brush++)
+            for (int level = 0; level < palette.Length; level++)
             {
-                Color color = Brushes[brush].Color;
+                Color color = palette[level];
 
                 for (int coverage = 0; coverage < 256; coverage++)
                 {
-                    table[brush * 256 + coverage] =
+                    table[level * 256 + coverage] =
                         (color.R * coverage / 255) << 16 | (color.G * coverage / 255) << 8 | (color.B * coverage / 255);
                 }
             }
@@ -143,7 +116,7 @@ namespace MatrixScreenSaver
                 thisCharacter.Brush--;
 
                 // If the character is still not on minimum colour, sometimes turn down one more.
-                if (thisCharacter.Brush != 0 && thisCharacter.Brush < Brushes.Length - 2 && random.Next(10) == 0)
+                if (thisCharacter.Brush != 0 && thisCharacter.Brush < ColorPalette.Size - 2 && random.Next(10) == 0)
                 {
                     thisCharacter.Brush--;
                 }
@@ -157,7 +130,7 @@ namespace MatrixScreenSaver
 
             // If not first row and
             // if the letter above is one less than white -> create next letter in the current row
-            else if (row > 0 && MatrixGrid[column, row - 1].Brush == Brushes.Length - 2)
+            else if (row > 0 && MatrixGrid[column, row - 1].Brush == ColorPalette.Size - 2)
             {
                 var dropAbove = MatrixGrid[column, row - 1];
 
@@ -165,21 +138,21 @@ namespace MatrixScreenSaver
                 if (row < rows - 1 && dropAbove.Speed > MaxSpeed / 2 && random.Next(MaxSpeed - dropAbove.Speed) == 0)
                 {
                     var nextCharacter = MatrixGrid[column, row + 1];
-                    nextCharacter.Brush = Brushes.Length - 1;
+                    nextCharacter.Brush = ColorPalette.Size - 1;
                     nextCharacter.Character = RandomCharacter();
                     nextCharacter.Speed = dropAbove.Speed;
                     nextCharacter.IsFlash = dropAbove.IsFlash;
 
                     changedValues.Add(new Coordinate { Column = column, Row = row + 1 });
 
-                    thisCharacter.Brush = Brushes.Length - 2;
+                    thisCharacter.Brush = ColorPalette.Size - 2;
 
                     // Processing the new character in the same frame would let the drop run on and on.
                     createdNextCharacter = !nextCharacter.IsFlash;
                 }
                 else
                 {
-                    thisCharacter.Brush = Brushes.Length - 1;
+                    thisCharacter.Brush = ColorPalette.Size - 1;
                 }
 
                 thisCharacter.Character = RandomCharacter();
@@ -247,7 +220,7 @@ namespace MatrixScreenSaver
                     var origin = new Point(i % atlasColumns * cellSize, i / atlasColumns * cellSize);
                     var text = new FormattedText(
                         characterPool[i].ToString(), CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
-                        typeface, characterSize * 0.75, System.Windows.Media.Brushes.White, dpi.PixelsPerDip);
+                        typeface, characterSize * 0.75, Brushes.White, dpi.PixelsPerDip);
 
                     context.PushClip(new RectangleGeometry(new Rect(origin, new Size(cellSize, cellSize))));
                     context.DrawText(text, origin);
@@ -295,7 +268,7 @@ namespace MatrixScreenSaver
 
                 for (int x = 0; x < cellPixels; x++)
                 {
-                    line[x] = maskOffset < 0 ? 0 : ColorTable[colorOffset + glyphMasks[maskOffset + y * cellPixels + x]];
+                    line[x] = maskOffset < 0 ? 0 : colorTable[colorOffset + glyphMasks[maskOffset + y * cellPixels + x]];
                 }
             }
         }
@@ -421,7 +394,7 @@ namespace MatrixScreenSaver
         private void StartDrop(int column, int row, List<Coordinate> changedValues)
         {
             var newCharacter = MatrixGrid[column, row];
-            newCharacter.Brush = Brushes.Length - 1;
+            newCharacter.Brush = ColorPalette.Size - 1;
             newCharacter.Character = RandomCharacter();
             newCharacter.IsFlash = random.NextDouble() < FlashDropProbability;
             newCharacter.Speed = newCharacter.IsFlash ? MaxSpeed : random.Next(MaxSpeed) + 1;
