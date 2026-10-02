@@ -20,7 +20,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,7 +34,7 @@ namespace MatrixScreenSaver
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window, INotifyPropertyChanged
+    public partial class MainWindow : Window
     {
         private const int MaxSpeed = 20;
 
@@ -95,18 +94,9 @@ namespace MatrixScreenSaver
 
             InitializeComponent();
             this.Loaded += MainWindow_Loaded;
-            this.DataContext = this;
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        public Brush DebugGridBackgroundBrush { get; private set; } = new SolidColorBrush(Colors.Yellow);
         public MatrixCharacter[,] MatrixGrid { get; private set; }
-
-        protected void OnPropertyChanged(string name)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-        }
 
         private static Color CalculateColor(Color firstColor, Color secondColor, int percentOfFirstColor)
         {
@@ -368,14 +358,6 @@ namespace MatrixScreenSaver
                         CalculateNewCharacters(column, row, changedValues);
                     }
                 }
-
-                //Parallel.For(0, columns - 1, column =>
-                //{
-                //    for (int row = 0; row < rows; row++)
-                //    {
-                //        CalculateNewCharacters(column, row, changedValues);
-                //    }
-                //});
 
                 for (int column = 0; column < columns; column++)
                 {

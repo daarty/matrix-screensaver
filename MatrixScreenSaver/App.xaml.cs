@@ -45,8 +45,6 @@ namespace MatrixScreenSaver
             {
                 foreach (Screen s in Screen.AllScreens)
                 {
-                    //if (s != Screen.PrimaryScreen)
-
                     MainWindow window = new MainWindow(settings);
 
                     // Screen.Bounds is in pixels, WPF positions windows in device independent units.
@@ -67,7 +65,7 @@ namespace MatrixScreenSaver
                 Int32 previewHandle = Convert.ToInt32(e.Args[1]);
                 IntPtr pPreviewHnd = new IntPtr(previewHandle);
                 RECT lpRect = new RECT();
-                bool bGetRect = Win32API.GetClientRect(pPreviewHnd, ref lpRect);
+                Win32API.GetClientRect(pPreviewHnd, ref lpRect);
 
                 HwndSourceParameters sourceParams = new HwndSourceParameters("sourceParams");
 
