@@ -357,6 +357,8 @@ namespace MatrixScreenSaver
 
         private void MainGrid_Loaded(object sender, RoutedEventArgs e)
         {
+            // Loaded comes again whenever the grid re-enters a visual tree, the scene must be created only once.
+            MainGrid.Loaded -= MainGrid_Loaded;
             CreateScene();
         }
 
@@ -384,8 +386,8 @@ namespace MatrixScreenSaver
 
                 for (int column = 0; column < columns; column++)
                 {
-                    // Half of the drops start at the top. Each row below starts one with 1 / rows of that chance,
-                    // which gives the other half.
+                    // Half of the drops start at the top. Each row below starts one with 1 / (rows - 1) of that
+                    // chance, which gives the other half.
                     if (random.NextDouble() < newDropProbability / 2)
                     {
                         StartDrop(column, 0, changedValues);

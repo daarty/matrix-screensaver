@@ -19,7 +19,8 @@ needs no installed .NET.
 2. Right-click it and choose **Install** (on Windows 11 under *Show more options*). Windows selects it
    as the screensaver and opens the Screen Saver Settings with a preview and the **Settings** button.
 
-To remove it, select another screensaver and delete the file. The settings are stored in
+Outside of `C:\Windows\System32` it only stays in the screensaver list while it is selected. To remove
+it, select another screensaver and delete the file. The settings are stored in
 `%APPDATA%\MatrixScreenSaver\settings.json`.
 
 ## Command line

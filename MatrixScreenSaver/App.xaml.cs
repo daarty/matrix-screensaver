@@ -78,10 +78,16 @@ namespace MatrixScreenSaver
                     Density = settings.Density,
                 };
 
-                MainWindow window = new MainWindow(previewSettings);
                 IntPtr pPreviewHnd = new IntPtr(previewHandle);
                 RECT lpRect = new RECT();
-                Win32API.GetClientRect(pPreviewHnd, ref lpRect);
+
+                if (!Win32API.GetClientRect(pPreviewHnd, ref lpRect) || lpRect.Right <= lpRect.Left || lpRect.Bottom <= lpRect.Top)
+                {
+                    Shutdown();
+                    return;
+                }
+
+                MainWindow window = new MainWindow(previewSettings);
 
                 HwndSourceParameters sourceParams = new HwndSourceParameters("sourceParams");
 
@@ -109,6 +115,10 @@ namespace MatrixScreenSaver
                 }
 
                 settingsWindow.ShowDialog();
+            }
+            else
+            {
+                Shutdown();
             }
         }
     }
