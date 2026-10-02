@@ -38,6 +38,8 @@ namespace MatrixScreenSaver
     {
         private const int MaxSpeed = 20;
 
+        private const double FlashDropProbability = 0.02;
+
         // In screen pixels.
         private const double MouseMoveTolerance = 10;
 
@@ -125,9 +127,11 @@ namespace MatrixScreenSaver
             return table;
         }
 
-        private void CalculateNewCharacters(int column, int row, List<Coordinate> changedValues)
+        /// <returns>True if the character below was just created and must not move on in this frame.</returns>
+        private bool CalculateNewCharacters(int column, int row, List<Coordinate> changedValues)
         {
             var thisCharacter = MatrixGrid[column, row];
+            bool createdNextCharacter = false;
 
             // No update if the minimal brush is already applied.
             // Sometimes just don't update the current one, depending on the speed. So it gets "stuck" more often.
@@ -152,17 +156,23 @@ namespace MatrixScreenSaver
             // if the letter above is one less than white -> create next letter in the current row
             else if (row > 0 && MatrixGrid[column, row - 1].Brush == Brushes.Length - 2)
             {
+                var dropAbove = MatrixGrid[column, row - 1];
+
                 // If not in last row and at high speed, sometimes jump two blocks
-                if (row < rows - 1 && thisCharacter.Speed > MaxSpeed / 2 && random.Next(MaxSpeed - thisCharacter.Speed) == 0)
+                if (row < rows - 1 && dropAbove.Speed > MaxSpeed / 2 && random.Next(MaxSpeed - dropAbove.Speed) == 0)
                 {
                     var nextCharacter = MatrixGrid[column, row + 1];
                     nextCharacter.Brush = Brushes.Length - 1;
                     nextCharacter.Character = RandomCharacter();
-                    nextCharacter.Speed = MatrixGrid[column, row - 1].Speed;
+                    nextCharacter.Speed = dropAbove.Speed;
+                    nextCharacter.IsFlash = dropAbove.IsFlash;
 
                     changedValues.Add(new Coordinate { Column = column, Row = row + 1 });
 
                     thisCharacter.Brush = Brushes.Length - 2;
+
+                    // Processing the new character in the same frame would let the drop run on and on.
+                    createdNextCharacter = !nextCharacter.IsFlash;
                 }
                 else
                 {
@@ -170,10 +180,13 @@ namespace MatrixScreenSaver
                 }
 
                 thisCharacter.Character = RandomCharacter();
-                thisCharacter.Speed = MatrixGrid[column, row - 1].Speed;
+                thisCharacter.Speed = dropAbove.Speed;
+                thisCharacter.IsFlash = dropAbove.IsFlash;
 
                 changedValues.Add(new Coordinate { Column = column, Row = row });
             }
+
+            return createdNextCharacter;
         }
 
         private void CreateScene()
@@ -355,7 +368,10 @@ namespace MatrixScreenSaver
                 {
                     for (int row = 0; row < rows; row++)
                     {
-                        CalculateNewCharacters(column, row, changedValues);
+                        if (CalculateNewCharacters(column, row, changedValues))
+                        {
+                            row++;
+                        }
                     }
                 }
 
@@ -366,7 +382,8 @@ namespace MatrixScreenSaver
                         var newCharacter = MatrixGrid[column, 0];
                         newCharacter.Brush = Brushes.Length - 1;
                         newCharacter.Character = RandomCharacter();
-                        newCharacter.Speed = random.Next(MaxSpeed) + 1;
+                        newCharacter.IsFlash = random.NextDouble() < FlashDropProbability;
+                        newCharacter.Speed = newCharacter.IsFlash ? MaxSpeed : random.Next(MaxSpeed) + 1;
 
                         changedValues.Add(new Coordinate { Column = column, Row = 0 });
                     }

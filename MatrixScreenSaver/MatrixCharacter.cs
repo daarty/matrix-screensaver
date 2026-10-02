@@ -52,6 +52,9 @@ namespace MatrixScreenSaver
         public char Character { get; set; } = ' ';
         public int Speed { get; set; } = 0;
 
+        // A flash drop runs down the whole screen within a frame or two.
+        public bool IsFlash { get; set; }
+
         public static char[] CreatePool(CharacterSets sets)
         {
             return CharactersBySet.Where(pair => sets.HasFlag(pair.Key)).SelectMany(pair => pair.Value).ToArray();
