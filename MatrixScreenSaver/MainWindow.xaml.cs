@@ -28,6 +28,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace MatrixScreenSaver
 {
@@ -37,6 +38,9 @@ namespace MatrixScreenSaver
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
         private const int MaxSpeed = 20;
+
+        // In screen pixels.
+        private const double MouseMoveTolerance = 10;
 
         private static readonly SolidColorBrush[] Brushes = new SolidColorBrush[]
            {
@@ -62,6 +66,8 @@ namespace MatrixScreenSaver
 
         // Chance per column and frame to start a new drop.
         private readonly double newDropProbability;
+
+        private Point? initialMousePosition;
 
         private int columns;
 
@@ -217,7 +223,8 @@ namespace MatrixScreenSaver
         {
             try
             {
-                MainGrid.Dispatcher.Invoke(action);
+                // Below input and render priority, so a slow frame cannot block exiting or drawing.
+                MainGrid.Dispatcher.Invoke(action, DispatcherPriority.Background);
             }
             catch (TaskCanceledException ex)
             {
@@ -227,6 +234,8 @@ namespace MatrixScreenSaver
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            // Takes the keyboard focus where Windows allows it, e.g. when Windows starts the screensaver itself.
+            Activate();
             CreateScene();
         }
 
@@ -306,6 +315,22 @@ namespace MatrixScreenSaver
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)
         {
             Application.Current.Shutdown();
+        }
+
+        private void Window_MouseMove(object sender, MouseEventArgs e)
+        {
+            // WPF also raises MouseMove without a real movement, e.g. when the window appears under the cursor.
+            // Screen pixels stay stable even if the window gets rescaled on a monitor with a different DPI.
+            Point position = PointToScreen(e.GetPosition(this));
+
+            if (initialMousePosition == null)
+            {
+                initialMousePosition = position;
+            }
+            else if ((position - initialMousePosition.Value).Length > MouseMoveTolerance)
+            {
+                Application.Current.Shutdown();
+            }
         }
     }
 }
