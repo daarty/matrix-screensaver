@@ -377,15 +377,16 @@ namespace MatrixScreenSaver
 
                 for (int column = 0; column < columns; column++)
                 {
-                    if (random.NextDouble() < newDropProbability)
+                    // Half of the drops start at the top. Each row below starts one with 1 / rows of that chance,
+                    // which gives the other half.
+                    if (random.NextDouble() < newDropProbability / 2)
                     {
-                        var newCharacter = MatrixGrid[column, 0];
-                        newCharacter.Brush = Brushes.Length - 1;
-                        newCharacter.Character = RandomCharacter();
-                        newCharacter.IsFlash = random.NextDouble() < FlashDropProbability;
-                        newCharacter.Speed = newCharacter.IsFlash ? MaxSpeed : random.Next(MaxSpeed) + 1;
+                        StartDrop(column, 0, changedValues);
+                    }
 
-                        changedValues.Add(new Coordinate { Column = column, Row = 0 });
+                    if (rows > 1 && random.NextDouble() < newDropProbability / 2)
+                    {
+                        StartDrop(column, random.Next(1, rows), changedValues);
                     }
                 }
 
@@ -406,6 +407,17 @@ namespace MatrixScreenSaver
 
                 Thread.Sleep(Math.Max(1, (int)timeSpanExpected.Subtract(timeSpan).TotalMilliseconds));
             }
+        }
+
+        private void StartDrop(int column, int row, List<Coordinate> changedValues)
+        {
+            var newCharacter = MatrixGrid[column, row];
+            newCharacter.Brush = Brushes.Length - 1;
+            newCharacter.Character = RandomCharacter();
+            newCharacter.IsFlash = random.NextDouble() < FlashDropProbability;
+            newCharacter.Speed = newCharacter.IsFlash ? MaxSpeed : random.Next(MaxSpeed) + 1;
+
+            changedValues.Add(new Coordinate { Column = column, Row = row });
         }
 
         private char RandomCharacter()
