@@ -72,7 +72,7 @@ namespace MatrixScreenSaver
             // One color shows its brightness levels, the other modes the hues they run through.
             IEnumerable<Color> colors = SelectedColorMode == ColorMode.SingleColor
                 ? palette
-                : Enumerable.Range(0, ColorPalette.Size).Select(i => ColorPalette.Create(ColorPalette.FromHue(120 + i * 360.0 / ColorPalette.Size))[9]);
+                : Enumerable.Range(0, ColorPalette.Size).Select(i => ColorPalette.FromHue(120 + i * 360.0 / ColorPalette.Size));
 
             ColorPreview.Children.Clear();
 

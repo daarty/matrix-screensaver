@@ -10,9 +10,14 @@ namespace MatrixScreenSaver
 
         public static readonly Color DefaultBaseColor = Colors.Green;
 
+        /// <param name="baseColor">The color a drop shows most of its way, between its white head and the dark trail.</param>
         public static Color[] Create(Color baseColor)
         {
-            baseColor = Normalize(baseColor);
+            // Black would give a black palette, nothing would be visible.
+            if (baseColor.R == 0 && baseColor.G == 0 && baseColor.B == 0)
+            {
+                baseColor = DefaultBaseColor;
+            }
 
             // Darker by the ratio of Colors.DarkGreen (0, 100, 0) to Colors.Green (0, 128, 0).
             Color darkColor = Color.FromRgb(
@@ -57,24 +62,6 @@ namespace MatrixScreenSaver
             };
 
             return Color.FromRgb((byte)Math.Round(r * 255), (byte)Math.Round(g * 255), (byte)Math.Round(b * 255));
-        }
-
-        // Only hue and saturation count: the brightest channel is scaled to that of Colors.Green,
-        // so every color keeps the dark trails and the white heads of the classic palette.
-        private static Color Normalize(Color color)
-        {
-            int brightest = Math.Max(color.R, Math.Max(color.G, color.B));
-
-            if (brightest == 0)
-            {
-                return DefaultBaseColor;
-            }
-
-            int target = DefaultBaseColor.G;
-            return Color.FromRgb(
-                (byte)(color.R * target / brightest),
-                (byte)(color.G * target / brightest),
-                (byte)(color.B * target / brightest));
         }
 
         private static Color Mix(Color firstColor, Color secondColor, int percentOfFirstColor)
