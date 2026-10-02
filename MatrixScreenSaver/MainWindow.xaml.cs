@@ -21,13 +21,13 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace MatrixScreenSaver
@@ -61,6 +61,9 @@ namespace MatrixScreenSaver
                 new SolidColorBrush(Colors.White)
            };
 
+        // Pixel value for each brush and glyph coverage (0-255), blended over the black background.
+        private static readonly int[] ColorTable = CreateColorTable();
+
         private readonly int characterSize;
         private readonly char[] characterPool;
 
@@ -68,6 +71,15 @@ namespace MatrixScreenSaver
         private readonly double newDropProbability;
 
         private Point? initialMousePosition;
+
+        // Size of a character cell in physical pixels.
+        private int cellPixels;
+
+        private WriteableBitmap bitmap;
+
+        // Coverage of every glyph of the pool, cellPixels * cellPixels bytes each.
+        private byte[] glyphMasks;
+        private Dictionary<char, int> glyphIndices;
 
         private int columns;
 
@@ -90,7 +102,6 @@ namespace MatrixScreenSaver
 
         public Brush DebugGridBackgroundBrush { get; private set; } = new SolidColorBrush(Colors.Yellow);
         public MatrixCharacter[,] MatrixGrid { get; private set; }
-        public TextBlock[,] TextGrid { get; private set; }
 
         protected void OnPropertyChanged(string name)
         {
@@ -104,6 +115,24 @@ namespace MatrixScreenSaver
                 (byte)((firstColor.R * percentOfFirstColor + secondColor.R * (100 - percentOfFirstColor)) / 100),
                 (byte)((firstColor.G * percentOfFirstColor + secondColor.G * (100 - percentOfFirstColor)) / 100),
                 (byte)((firstColor.B * percentOfFirstColor + secondColor.B * (100 - percentOfFirstColor)) / 100));
+        }
+
+        private static int[] CreateColorTable()
+        {
+            var table = new int[Brushes.Length * 256];
+
+            for (int brush = 0; brush < Brushes.Length; brush++)
+            {
+                Color color = Brushes[brush].Color;
+
+                for (int coverage = 0; coverage < 256; coverage++)
+                {
+                    table[brush * 256 + coverage] =
+                        (color.R * coverage / 255) << 16 | (color.G * coverage / 255) << 8 | (color.B * coverage / 255);
+                }
+            }
+
+            return table;
         }
 
         private void CalculateNewCharacters(int column, int row, List<Coordinate> changedValues)
@@ -162,49 +191,25 @@ namespace MatrixScreenSaver
             // Timer
             var timeStampCreationFirst = DateTime.Now;
 
-            columns = (int)Math.Ceiling(MainGrid.RenderSize.Width / characterSize);
-            rows = (int)Math.Ceiling(MainGrid.RenderSize.Height / characterSize);
+            // Drawing in physical pixels keeps the characters sharp at any display scaling.
+            DpiScale dpi = VisualTreeHelper.GetDpi(MainGrid);
+            cellPixels = Math.Max(1, (int)Math.Round(characterSize * dpi.DpiScaleX));
 
-            for (int i = 0; i < columns; i++)
-            {
-                MainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(characterSize) });
-            }
+            columns = (int)Math.Ceiling(MainGrid.RenderSize.Width * dpi.DpiScaleX / cellPixels);
+            rows = (int)Math.Ceiling(MainGrid.RenderSize.Height * dpi.DpiScaleY / cellPixels);
 
-            for (int i = 0; i < rows; i++)
-            {
-                MainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(characterSize) });
-            }
+            CreateGlyphMasks(dpi);
+
+            bitmap = new WriteableBitmap(columns * cellPixels, rows * cellPixels, dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Bgr32, null);
+            MatrixImage.Source = bitmap;
 
             MatrixGrid = new MatrixCharacter[columns, rows];
-            TextGrid = new TextBlock[columns, rows];
-
-            var random = new Random();
 
             for (int i = 0; i < columns; i++)
             {
                 for (int j = 0; j < rows; j++)
                 {
-                    // MatrixCharacter
-                    var thisCharacter = new MatrixCharacter();
-                    MatrixGrid[i, j] = thisCharacter;
-
-                    thisCharacter.Name = $"MatrixGridColumn{i}Row{j}";
-
-                    // TextBlock
-                    var thisTextBlock = new TextBlock();
-                    TextGrid[i, j] = thisTextBlock;
-
-                    thisTextBlock.FontSize = characterSize * 0.75;
-                    thisTextBlock.Foreground = new SolidColorBrush(Colors.Black);
-
-                    Grid.SetColumn(thisTextBlock, i);
-                    Grid.SetRow(thisTextBlock, j);
-
-                    MainGrid.Children.Add(thisTextBlock);
-
-                    var thisBinding = new Binding();
-                    thisBinding.Source = MatrixGrid[i, j].Character;
-                    thisTextBlock.SetBinding(TextBlock.TextProperty, thisBinding);
+                    MatrixGrid[i, j] = new MatrixCharacter();
                 }
             }
 
@@ -217,6 +222,112 @@ namespace MatrixScreenSaver
             // Every screen needs its own list
             var changedValues = new List<Coordinate>();
             Task.Run(() => RunAnimation(changedValues));
+        }
+
+        private void CreateGlyphMasks(DpiScale dpi)
+        {
+            // Render every glyph once into an atlas and keep only its coverage.
+            var typeface = new Typeface(SystemFonts.MessageFontFamily, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+            int atlasColumns = (int)Math.Ceiling(Math.Sqrt(characterPool.Length));
+            int atlasRows = (int)Math.Ceiling((double)characterPool.Length / atlasColumns);
+            double cellSize = cellPixels / dpi.DpiScaleX;
+
+            var visual = new DrawingVisual();
+
+            using (DrawingContext context = visual.RenderOpen())
+            {
+                for (int i = 0; i < characterPool.Length; i++)
+                {
+                    var origin = new Point(i % atlasColumns * cellSize, i / atlasColumns * cellSize);
+                    var text = new FormattedText(
+                        characterPool[i].ToString(), CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                        typeface, characterSize * 0.75, System.Windows.Media.Brushes.White, dpi.PixelsPerDip);
+
+                    context.PushClip(new RectangleGeometry(new Rect(origin, new Size(cellSize, cellSize))));
+                    context.DrawText(text, origin);
+                    context.Pop();
+                }
+            }
+
+            int atlasWidth = atlasColumns * cellPixels;
+            var atlas = new RenderTargetBitmap(atlasWidth, atlasRows * cellPixels, dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
+            atlas.Render(visual);
+
+            var atlasPixels = new int[atlasWidth * atlasRows * cellPixels];
+            atlas.CopyPixels(atlasPixels, atlasWidth * 4, 0);
+
+            glyphMasks = new byte[characterPool.Length * cellPixels * cellPixels];
+            glyphIndices = new Dictionary<char, int>();
+
+            for (int i = 0; i < characterPool.Length; i++)
+            {
+                glyphIndices[characterPool[i]] = i;
+
+                int left = i % atlasColumns * cellPixels;
+                int top = i / atlasColumns * cellPixels;
+
+                for (int y = 0; y < cellPixels; y++)
+                {
+                    for (int x = 0; x < cellPixels; x++)
+                    {
+                        // The text is white, so the alpha channel is the coverage.
+                        glyphMasks[(i * cellPixels + y) * cellPixels + x] = (byte)(atlasPixels[(top + y) * atlasWidth + left + x] >> 24);
+                    }
+                }
+            }
+        }
+
+        private unsafe void DrawCell(byte* backBuffer, int stride, int column, int row)
+        {
+            MatrixCharacter character = MatrixGrid[column, row];
+            int colorOffset = character.Brush * 256;
+            int maskOffset = glyphIndices.TryGetValue(character.Character, out int glyph) ? glyph * cellPixels * cellPixels : -1;
+
+            for (int y = 0; y < cellPixels; y++)
+            {
+                int* line = (int*)(backBuffer + (row * cellPixels + y) * stride) + column * cellPixels;
+
+                for (int x = 0; x < cellPixels; x++)
+                {
+                    line[x] = maskOffset < 0 ? 0 : ColorTable[colorOffset + glyphMasks[maskOffset + y * cellPixels + x]];
+                }
+            }
+        }
+
+        private unsafe void DrawChangedCells(List<Coordinate> changedValues)
+        {
+            if (changedValues.Count == 0)
+            {
+                return;
+            }
+
+            int firstColumn = columns, lastColumn = 0, firstRow = rows, lastRow = 0;
+
+            bitmap.Lock();
+
+            try
+            {
+                byte* backBuffer = (byte*)bitmap.BackBuffer;
+
+                foreach (var coordinate in changedValues)
+                {
+                    DrawCell(backBuffer, bitmap.BackBufferStride, coordinate.Column, coordinate.Row);
+
+                    firstColumn = Math.Min(firstColumn, coordinate.Column);
+                    lastColumn = Math.Max(lastColumn, coordinate.Column);
+                    firstRow = Math.Min(firstRow, coordinate.Row);
+                    lastRow = Math.Max(lastRow, coordinate.Row);
+                }
+
+                // WPF merges many small dirty rects into their union anyway, one rect saves the calls.
+                bitmap.AddDirtyRect(new Int32Rect(
+                    firstColumn * cellPixels, firstRow * cellPixels,
+                    (lastColumn - firstColumn + 1) * cellPixels, (lastRow - firstRow + 1) * cellPixels));
+            }
+            finally
+            {
+                bitmap.Unlock();
+            }
         }
 
         private void InvokeUiAction(Action action)
@@ -283,11 +394,7 @@ namespace MatrixScreenSaver
                 {
                     Console.WriteLine("ChangedValues: " + changedValues.Count);
 
-                    foreach (var coordinate in changedValues)
-                    {
-                        TextGrid[coordinate.Column, coordinate.Row].Text = MatrixGrid[coordinate.Column, coordinate.Row].Character.ToString();
-                        TextGrid[coordinate.Column, coordinate.Row].Foreground = Brushes[MatrixGrid[coordinate.Column, coordinate.Row].Brush];
-                    }
+                    DrawChangedCells(changedValues);
 
                     changedValues.Clear();
                 });

@@ -9,6 +9,7 @@
     <RootNamespace>MatrixScreenSaver</RootNamespace>
     <AssemblyName>MatrixScreenSaver</AssemblyName>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Resources\MatrixScreenSaver.ico</ApplicationIcon>
 
     <Company>ecth oo'</Company>

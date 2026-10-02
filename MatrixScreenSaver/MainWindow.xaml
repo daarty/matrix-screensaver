@@ -31,5 +31,11 @@
         ShowInTaskbar="False"
         Topmost="True"
         WindowStyle="None">
-    <Grid x:Name="MainGrid" />
+    <Grid x:Name="MainGrid">
+        <Image x:Name="MatrixImage"
+               HorizontalAlignment="Left"
+               VerticalAlignment="Top"
+               RenderOptions.BitmapScalingMode="NearestNeighbor"
+               Stretch="None" />
+    </Grid>
 </Window>

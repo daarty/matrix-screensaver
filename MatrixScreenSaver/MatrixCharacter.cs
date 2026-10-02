@@ -50,7 +50,6 @@ namespace MatrixScreenSaver
 
         public int Brush { get; set; } = 0;
         public char Character { get; set; } = ' ';
-        public string Name { get; set; }
         public int Speed { get; set; } = 0;
 
         public static char[] CreatePool(CharacterSets sets)
