@@ -73,6 +73,8 @@ namespace MatrixScreenSaver
                 // The preview area is tiny, so it shows the smallest characters.
                 ScreenSaverSettings previewSettings = settings.Clone();
                 previewSettings.CharacterSize = ScreenSaverSettings.MinCharacterSize;
+                previewSettings.GlowRadius = Math.Max(
+                    ScreenSaverSettings.MinGlowRadius, settings.GlowRadius * ScreenSaverSettings.MinCharacterSize / settings.CharacterSize);
 
                 IntPtr pPreviewHnd = new IntPtr(previewHandle);
                 RECT lpRect = new RECT();

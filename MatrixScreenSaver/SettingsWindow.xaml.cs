@@ -15,6 +15,7 @@ namespace MatrixScreenSaver
     {
         private readonly Dictionary<CharacterSets, CheckBox> characterSetBoxes = new Dictionary<CharacterSets, CheckBox>();
 
+        private readonly List<(Slider Slider, Func<ScreenSaverSettings, int> Get, Action<ScreenSaverSettings, int> Set)> glowSliders = new();
         private readonly List<(Slider Slider, Func<ScreenSaverSettings, int> Get, Action<ScreenSaverSettings, int> Set)> advancedSliders = new();
 
         private Color baseColor;
@@ -40,6 +41,9 @@ namespace MatrixScreenSaver
                 CharacterSetPanel.Children.Add(box);
             }
 
+            AddSlider(GlowPanel, glowSliders, "Glow intensity (%)", 0, 100, s => s.GlowIntensityPercent, (s, v) => s.GlowIntensityPercent = v);
+            AddSlider(GlowPanel, glowSliders, "Glow radius", ScreenSaverSettings.MinGlowRadius, ScreenSaverSettings.MaxGlowRadius, s => s.GlowRadius, (s, v) => s.GlowRadius = v);
+
             AddAdvancedSlider("Drops starting below the top row (%)", 0, 100, s => s.MidStartPercent, (s, v) => s.MidStartPercent = v);
             Slider minSpeedSlider = AddAdvancedSlider("Slowest drop speed", ScreenSaverSettings.SlowestSpeed, ScreenSaverSettings.FastestSpeed, s => s.MinSpeed, (s, v) => s.MinSpeed = v);
             Slider maxSpeedSlider = AddAdvancedSlider("Fastest drop speed", ScreenSaverSettings.SlowestSpeed, ScreenSaverSettings.FastestSpeed, s => s.MaxSpeed, (s, v) => s.MaxSpeed = v);
@@ -50,6 +54,7 @@ namespace MatrixScreenSaver
             AddAdvancedSlider("Chance per flicker that such a drop stops (%)", 0, 100, s => s.FlickerStopPercent, (s, v) => s.FlickerStopPercent = v);
             AddAdvancedSlider("Stopping flicker drops that run down instead of fading (%)", 0, 100, s => s.FlickerMovePercent, (s, v) => s.FlickerMovePercent = v);
             AddAdvancedSlider("Frames per second", ScreenSaverSettings.MinFramesPerSecond, ScreenSaverSettings.MaxFramesPerSecond, s => s.FramesPerSecond, (s, v) => s.FramesPerSecond = v);
+            AddAdvancedSlider("Lowest brightness level that glows, faintly there and fully at the head (position in the color strip)", ScreenSaverSettings.MinGlowLevel, ScreenSaverSettings.MaxGlowLevel, s => s.GlowLevel, (s, v) => s.GlowLevel = v);
 
             // Moving one speed slider past the other takes the other along.
             minSpeedSlider.ValueChanged += (o, args) => maxSpeedSlider.Value = Math.Max(maxSpeedSlider.Value, args.NewValue);
@@ -60,6 +65,14 @@ namespace MatrixScreenSaver
 
         private Slider AddAdvancedSlider(string label, int minimum, int maximum, Func<ScreenSaverSettings, int> get, Action<ScreenSaverSettings, int> set)
         {
+            return AddSlider(AdvancedPanel, advancedSliders, label, minimum, maximum, get, set);
+        }
+
+        private static Slider AddSlider(
+            Panel panel,
+            List<(Slider Slider, Func<ScreenSaverSettings, int> Get, Action<ScreenSaverSettings, int> Set)> sliders,
+            string label, int minimum, int maximum, Func<ScreenSaverSettings, int> get, Action<ScreenSaverSettings, int> set)
+        {
             var slider = new Slider { Minimum = minimum, Maximum = maximum, IsSnapToTickEnabled = true, TickFrequency = 1 };
             var value = new TextBlock { Width = 40, TextAlignment = TextAlignment.Right };
             value.SetBinding(TextBlock.TextProperty, new Binding(nameof(Slider.Value)) { Source = slider });
@@ -69,9 +82,9 @@ namespace MatrixScreenSaver
             row.Children.Add(value);
             row.Children.Add(slider);
 
-            AdvancedPanel.Children.Add(new TextBlock { Text = label, Margin = new Thickness(0, advancedSliders.Count == 0 ? 0 : 12, 0, 0) });
-            AdvancedPanel.Children.Add(row);
-            advancedSliders.Add((slider, get, set));
+            panel.Children.Add(new TextBlock { Text = label, Margin = new Thickness(0, sliders.Count == 0 ? 0 : 12, 0, 0) });
+            panel.Children.Add(row);
+            sliders.Add((slider, get, set));
 
             return slider;
         }
@@ -80,6 +93,8 @@ namespace MatrixScreenSaver
         {
             CharacterSizeSlider.Value = settings.CharacterSize;
             DensitySlider.Value = settings.Density;
+            GlowBox.IsChecked = settings.Glow;
+            DisplaySliders(glowSliders, settings);
             DisplayAdvancedSettings(settings);
 
             foreach (var (set, box) in characterSetBoxes)
@@ -96,7 +111,13 @@ namespace MatrixScreenSaver
 
         private void DisplayAdvancedSettings(ScreenSaverSettings settings)
         {
-            foreach (var (slider, get, _) in advancedSliders)
+            DisplaySliders(advancedSliders, settings);
+        }
+
+        private static void DisplaySliders(
+            List<(Slider Slider, Func<ScreenSaverSettings, int> Get, Action<ScreenSaverSettings, int> Set)> sliders, ScreenSaverSettings settings)
+        {
+            foreach (var (slider, get, _) in sliders)
             {
                 slider.Value = get(settings);
             }
@@ -110,7 +131,7 @@ namespace MatrixScreenSaver
         private void UpdateColorPreview()
         {
             Color[] palette = ColorPalette.Create(baseColor);
-            Color buttonColor = palette[9];
+            Color buttonColor = palette[ColorPalette.BaseLevel];
             ColorButton.Background = new SolidColorBrush(buttonColor);
             ColorButton.Foreground = buttonColor.R * 0.2126 + buttonColor.G * 0.7152 + buttonColor.B * 0.0722 < 128 ? Brushes.White : Brushes.Black;
 
@@ -179,9 +200,10 @@ namespace MatrixScreenSaver
                 CharacterSets = CharacterSets.None,
                 ColorMode = SelectedColorMode,
                 BaseColor = ScreenSaverSettings.ToHex(baseColor),
+                Glow = GlowBox.IsChecked == true,
             };
 
-            foreach (var (slider, _, set) in advancedSliders)
+            foreach (var (slider, _, set) in glowSliders.Concat(advancedSliders))
             {
                 set(settings, (int)slider.Value);
             }

@@ -55,9 +55,12 @@ namespace MatrixScreenSaver
         // In screen pixels.
         private const double MouseMoveTolerance = 10;
 
+        // The glow source is the glyph widened by this many pixels, a thin stroke alone blurs to almost nothing.
+        private const int GlowDilation = 2;
+
         private readonly ScreenSaverSettings settings;
 
-        // Pixel value for each palette, level and glyph coverage (0-255), blended over the black background.
+        // Premultiplied pixel value for each palette, level and glyph coverage (0-255).
         private int[] colorTable;
 
         private readonly int characterSize;
@@ -74,8 +77,12 @@ namespace MatrixScreenSaver
 
         private WriteableBitmap bitmap;
 
-        // Coverage of every glyph of the pool, cellPixels * cellPixels bytes each.
+        // Only the bright characters, blurred by the effect on GlowImage; null without glow.
+        private WriteableBitmap glowBitmap;
+
+        // Coverage of every glyph of the pool, cellPixels * cellPixels bytes each, and the widened coverage for the glow.
         private byte[] glyphMasks;
+        private byte[] glowMasks;
         private Dictionary<char, int> glyphIndices;
 
         private int columns;
@@ -126,7 +133,7 @@ namespace MatrixScreenSaver
                     for (int coverage = 0; coverage < 256; coverage++)
                     {
                         table[offset + coverage] =
-                            (color.R * coverage / 255) << 16 | (color.G * coverage / 255) << 8 | (color.B * coverage / 255);
+                            coverage << 24 | (color.R * coverage / 255) << 16 | (color.G * coverage / 255) << 8 | (color.B * coverage / 255);
                     }
                 }
             }
@@ -275,8 +282,23 @@ namespace MatrixScreenSaver
 
             CreateGlyphMasks(dpi);
 
-            bitmap = new WriteableBitmap(columns * cellPixels, rows * cellPixels, dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Bgr32, null);
+            bitmap = new WriteableBitmap(columns * cellPixels, rows * cellPixels, dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32, null);
             MatrixImage.Source = bitmap;
+
+            // Without hardware acceleration (remote desktop, some VMs) a full-screen blur per frame stutters badly.
+            bool hardwareRendering = RenderCapability.Tier >> 16 > 0;
+
+            if (settings.Glow && settings.GlowIntensityPercent > 0 && hardwareRendering)
+            {
+                glowBitmap = new WriteableBitmap(columns * cellPixels, rows * cellPixels, dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32, null);
+                GlowImage.Source = glowBitmap;
+                GlowImage.Opacity = settings.GlowIntensityPercent / 100.0;
+                GlowBlur.Radius = settings.GlowRadius;
+            }
+            else
+            {
+                GlowImage.Visibility = Visibility.Collapsed;
+            }
 
             MatrixGrid = new MatrixCharacter[columns, rows];
 
@@ -332,6 +354,7 @@ namespace MatrixScreenSaver
             atlas.CopyPixels(atlasPixels, atlasWidth * 4, 0);
 
             glyphMasks = new byte[characterPool.Length * cellPixels * cellPixels];
+            glowMasks = new byte[glyphMasks.Length];
             glyphIndices = new Dictionary<char, int>();
 
             for (int i = 0; i < characterPool.Length; i++)
@@ -349,22 +372,59 @@ namespace MatrixScreenSaver
                         glyphMasks[(i * cellPixels + y) * cellPixels + x] = (byte)(atlasPixels[(top + y) * atlasWidth + left + x] >> 24);
                     }
                 }
+
+                for (int y = 0; y < cellPixels; y++)
+                {
+                    for (int x = 0; x < cellPixels; x++)
+                    {
+                        byte widened = 0;
+
+                        for (int dy = Math.Max(0, y - GlowDilation); dy <= Math.Min(cellPixels - 1, y + GlowDilation); dy++)
+                        {
+                            for (int dx = Math.Max(0, x - GlowDilation); dx <= Math.Min(cellPixels - 1, x + GlowDilation); dx++)
+                            {
+                                widened = Math.Max(widened, glyphMasks[(i * cellPixels + dy) * cellPixels + dx]);
+                            }
+                        }
+
+                        glowMasks[(i * cellPixels + y) * cellPixels + x] = widened;
+                    }
+                }
             }
         }
 
-        private unsafe void DrawCell(byte* backBuffer, int stride, int column, int row)
+        private unsafe void DrawCell(byte* backBuffer, byte* glowBuffer, int stride, int column, int row)
         {
             MatrixCharacter character = MatrixGrid[column, row];
             int colorOffset = (character.Palette * ColorPalette.Size + character.DisplayedBrush) * 256;
             int maskOffset = glyphIndices.TryGetValue(character.Character, out int glyph) ? glyph * cellPixels * cellPixels : -1;
 
+            // The glow grows with the level from faint at GlowLevel to full at the head, a hard threshold shows as a visible step in the drop.
+            int glowScale = glowBuffer != null && maskOffset >= 0 && character.DisplayedBrush >= settings.GlowLevel
+                ? (character.DisplayedBrush - settings.GlowLevel + 1) * 256 / (ColorPalette.Size - settings.GlowLevel)
+                : 0;
+
+            // The near-white levels would glow white, the base color keeps the halo in the drop's hue.
+            int glowOffset = (character.Palette * ColorPalette.Size + ColorPalette.BaseLevel) * 256;
+
             for (int y = 0; y < cellPixels; y++)
             {
-                int* line = (int*)(backBuffer + (row * cellPixels + y) * stride) + column * cellPixels;
+                int lineOffset = (row * cellPixels + y) * stride + column * cellPixels * 4;
+                int* line = (int*)(backBuffer + lineOffset);
 
                 for (int x = 0; x < cellPixels; x++)
                 {
                     line[x] = maskOffset < 0 ? 0 : colorTable[colorOffset + glyphMasks[maskOffset + y * cellPixels + x]];
+                }
+
+                if (glowBuffer != null)
+                {
+                    int* glowLine = (int*)(glowBuffer + lineOffset);
+
+                    for (int x = 0; x < cellPixels; x++)
+                    {
+                        glowLine[x] = glowScale == 0 ? 0 : colorTable[glowOffset + glowMasks[maskOffset + y * cellPixels + x] * glowScale / 256];
+                    }
                 }
             }
         }
@@ -380,10 +440,12 @@ namespace MatrixScreenSaver
             int firstColumn = columns, lastColumn = 0, firstRow = rows, lastRow = 0;
 
             bitmap.Lock();
+            glowBitmap?.Lock();
 
             try
             {
                 byte* backBuffer = (byte*)bitmap.BackBuffer;
+                byte* glowBuffer = glowBitmap == null ? null : (byte*)glowBitmap.BackBuffer;
 
                 if (redrawAll)
                 {
@@ -394,7 +456,7 @@ namespace MatrixScreenSaver
                         {
                             if (MatrixGrid[column, row].DisplayedBrush != 0)
                             {
-                                DrawCell(backBuffer, bitmap.BackBufferStride, column, row);
+                                DrawCell(backBuffer, glowBuffer, bitmap.BackBufferStride, column, row);
                             }
                         }
                     }
@@ -406,7 +468,7 @@ namespace MatrixScreenSaver
 
                 foreach (var coordinate in changedValues)
                 {
-                    DrawCell(backBuffer, bitmap.BackBufferStride, coordinate.Column, coordinate.Row);
+                    DrawCell(backBuffer, glowBuffer, bitmap.BackBufferStride, coordinate.Column, coordinate.Row);
 
                     firstColumn = Math.Min(firstColumn, coordinate.Column);
                     lastColumn = Math.Max(lastColumn, coordinate.Column);
@@ -415,12 +477,15 @@ namespace MatrixScreenSaver
                 }
 
                 // WPF merges many small dirty rects into their union anyway, one rect saves the calls.
-                bitmap.AddDirtyRect(new Int32Rect(
+                var dirtyRect = new Int32Rect(
                     firstColumn * cellPixels, firstRow * cellPixels,
-                    (lastColumn - firstColumn + 1) * cellPixels, (lastRow - firstRow + 1) * cellPixels));
+                    (lastColumn - firstColumn + 1) * cellPixels, (lastRow - firstRow + 1) * cellPixels);
+                bitmap.AddDirtyRect(dirtyRect);
+                glowBitmap?.AddDirtyRect(dirtyRect);
             }
             finally
             {
+                glowBitmap?.Unlock();
                 bitmap.Unlock();
             }
         }

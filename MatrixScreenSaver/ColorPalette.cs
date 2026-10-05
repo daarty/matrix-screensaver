@@ -8,6 +8,9 @@ namespace MatrixScreenSaver
         // Brightness levels of a character, from the black background up to the white head of a drop.
         public const int Size = 15;
 
+        // Level of the base color itself, above it the levels blend towards white.
+        public const int BaseLevel = 9;
+
         public static readonly Color DefaultBaseColor = Colors.Green;
 
         /// <param name="baseColor">The color a drop shows most of its way, between its white head and the dark trail.</param>

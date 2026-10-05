@@ -61,6 +61,13 @@
                      Margin="0,8,0,0"
                      Rows="1" />
 
+        <CheckBox x:Name="GlowBox"
+                  Margin="0,16,0,0"
+                  Content="Glow around bright characters" />
+        <StackPanel x:Name="GlowPanel"
+                    Margin="0,8,0,0"
+                    IsEnabled="{Binding IsChecked, ElementName=GlowBox}" />
+
         <Expander Margin="0,16,0,0" Header="Advanced">
             <StackPanel Margin="0,8,0,0">
                 <StackPanel x:Name="AdvancedPanel" />

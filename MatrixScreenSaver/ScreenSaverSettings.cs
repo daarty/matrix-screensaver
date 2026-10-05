@@ -28,6 +28,10 @@ namespace MatrixScreenSaver
         public const int FastestSpeed = 20;
         public const int MinFramesPerSecond = 1;
         public const int MaxFramesPerSecond = 60;
+        public const int MinGlowRadius = 1;
+        public const int MaxGlowRadius = 30;
+        public const int MinGlowLevel = 1;
+        public const int MaxGlowLevel = ColorPalette.Size - 1;
 
         private const CharacterSets DefaultCharacterSets = CharacterSets.Latin | CharacterSets.Katakana | CharacterSets.Digits | CharacterSets.Symbols;
 
@@ -47,7 +51,7 @@ namespace MatrixScreenSaver
         /// <summary>
         /// New drops per column and minute.
         /// </summary>
-        public int Density { get; set; } = 2;
+        public int Density { get; set; } = 10;
 
         public ColorMode ColorMode { get; set; } = ColorMode.SingleColor;
 
@@ -100,6 +104,23 @@ namespace MatrixScreenSaver
 
         public int FramesPerSecond { get; set; } = 15;
 
+        /// <summary>
+        /// A blurred copy of the bright characters behind the rain.
+        /// </summary>
+        public bool Glow { get; set; } = true;
+
+        public int GlowIntensityPercent { get; set; } = 60;
+
+        /// <summary>
+        /// Blur radius in device independent pixels.
+        /// </summary>
+        public int GlowRadius { get; set; } = 5;
+
+        /// <summary>
+        /// Lowest brightness level of the palette that glows, faintly there and fully at the head of a drop.
+        /// </summary>
+        public int GlowLevel { get; set; } = 7;
+
         public ScreenSaverSettings Clone()
         {
             return (ScreenSaverSettings)MemberwiseClone();
@@ -146,6 +167,9 @@ namespace MatrixScreenSaver
             FlickerStopPercent = Math.Clamp(FlickerStopPercent, 0, 100);
             FlickerMovePercent = Math.Clamp(FlickerMovePercent, 0, 100);
             FramesPerSecond = Math.Clamp(FramesPerSecond, MinFramesPerSecond, MaxFramesPerSecond);
+            GlowIntensityPercent = Math.Clamp(GlowIntensityPercent, 0, 100);
+            GlowRadius = Math.Clamp(GlowRadius, MinGlowRadius, MaxGlowRadius);
+            GlowLevel = Math.Clamp(GlowLevel, MinGlowLevel, MaxGlowLevel);
 
             if (MatrixCharacter.CreatePool(CharacterSets).Length == 0)
             {

@@ -31,7 +31,16 @@
         ShowInTaskbar="False"
         Topmost="True"
         WindowStyle="None">
-    <Grid x:Name="MainGrid">
+    <!--  The grid is the preview's root, so it needs the black background itself.  -->
+    <Grid x:Name="MainGrid" Background="Black">
+        <Image x:Name="GlowImage"
+               HorizontalAlignment="Left"
+               VerticalAlignment="Top"
+               Stretch="None">
+            <Image.Effect>
+                <BlurEffect x:Name="GlowBlur" />
+            </Image.Effect>
+        </Image>
         <Image x:Name="MatrixImage"
                HorizontalAlignment="Left"
                VerticalAlignment="Top"
