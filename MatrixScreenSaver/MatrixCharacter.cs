@@ -56,6 +56,9 @@ namespace MatrixScreenSaver
         public char Character { get; set; } = ' ';
         public int Speed { get; set; } = 0;
 
+        // Rows the drop spans from its head to the last visible character of its trail.
+        public int WordLength { get; set; }
+
         // A flash drop runs down the whole screen within a frame or two.
         public bool IsFlash { get; set; }
 

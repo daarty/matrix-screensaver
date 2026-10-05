@@ -47,6 +47,8 @@ namespace MatrixScreenSaver
             AddAdvancedSlider("Drops starting below the top row (%)", 0, 100, s => s.MidStartPercent, (s, v) => s.MidStartPercent = v);
             Slider minSpeedSlider = AddAdvancedSlider("Slowest drop speed", ScreenSaverSettings.SlowestSpeed, ScreenSaverSettings.FastestSpeed, s => s.MinSpeed, (s, v) => s.MinSpeed = v);
             Slider maxSpeedSlider = AddAdvancedSlider("Fastest drop speed", ScreenSaverSettings.SlowestSpeed, ScreenSaverSettings.FastestSpeed, s => s.MaxSpeed, (s, v) => s.MaxSpeed = v);
+            Slider minLengthSlider = AddAdvancedSlider("Shortest word length (rows)", ScreenSaverSettings.ShortestWordLength, ScreenSaverSettings.LongestWordLength, s => s.MinWordLength, (s, v) => s.MinWordLength = v);
+            Slider maxLengthSlider = AddAdvancedSlider("Longest word length (rows)", ScreenSaverSettings.ShortestWordLength, ScreenSaverSettings.LongestWordLength, s => s.MaxWordLength, (s, v) => s.MaxWordLength = v);
             AddAdvancedSlider("Drops flashing down the whole screen (%)", 0, 100, s => s.FlashDropPercent, (s, v) => s.FlashDropPercent = v);
             AddAdvancedSlider("Chance per row that a drop ends (%)", 0, 100, s => s.DropStopPercent, (s, v) => s.DropStopPercent = v);
             AddAdvancedSlider("Chance per frame that a fading character stays (%)", 0, 100, s => s.StuckPercent, (s, v) => s.StuckPercent = v);
@@ -56,11 +58,17 @@ namespace MatrixScreenSaver
             AddAdvancedSlider("Frames per second", ScreenSaverSettings.MinFramesPerSecond, ScreenSaverSettings.MaxFramesPerSecond, s => s.FramesPerSecond, (s, v) => s.FramesPerSecond = v);
             AddAdvancedSlider("Lowest brightness level that glows, faintly there and fully at the head (position in the color strip)", ScreenSaverSettings.MinGlowLevel, ScreenSaverSettings.MaxGlowLevel, s => s.GlowLevel, (s, v) => s.GlowLevel = v);
 
-            // Moving one speed slider past the other takes the other along.
-            minSpeedSlider.ValueChanged += (o, args) => maxSpeedSlider.Value = Math.Max(maxSpeedSlider.Value, args.NewValue);
-            maxSpeedSlider.ValueChanged += (o, args) => minSpeedSlider.Value = Math.Min(minSpeedSlider.Value, args.NewValue);
+            CoupleRange(minSpeedSlider, maxSpeedSlider);
+            CoupleRange(minLengthSlider, maxLengthSlider);
 
             DisplaySettings(settings);
+        }
+
+        // Moving one slider past the other takes the other along.
+        private static void CoupleRange(Slider minSlider, Slider maxSlider)
+        {
+            minSlider.ValueChanged += (o, args) => maxSlider.Value = Math.Max(maxSlider.Value, args.NewValue);
+            maxSlider.ValueChanged += (o, args) => minSlider.Value = Math.Min(minSlider.Value, args.NewValue);
         }
 
         private Slider AddAdvancedSlider(string label, int minimum, int maximum, Func<ScreenSaverSettings, int> get, Action<ScreenSaverSettings, int> set)

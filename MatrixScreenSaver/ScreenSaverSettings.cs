@@ -26,6 +26,8 @@ namespace MatrixScreenSaver
         public const int MaxDensity = 20;
         public const int SlowestSpeed = 1;
         public const int FastestSpeed = 20;
+        public const int ShortestWordLength = 1;
+        public const int LongestWordLength = 60;
         public const int MinFramesPerSecond = 1;
         public const int MaxFramesPerSecond = 60;
         public const int MinGlowRadius = 1;
@@ -33,7 +35,7 @@ namespace MatrixScreenSaver
         public const int MinGlowLevel = 1;
         public const int MaxGlowLevel = ColorPalette.Size - 1;
 
-        private const CharacterSets DefaultCharacterSets = CharacterSets.Latin | CharacterSets.Katakana | CharacterSets.Digits | CharacterSets.Symbols;
+        private const CharacterSets DefaultCharacterSets = CharacterSets.Katakana | CharacterSets.Digits | CharacterSets.Symbols;
 
         private static readonly string FilePath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MatrixScreenSaver", "settings.json");
@@ -71,6 +73,13 @@ namespace MatrixScreenSaver
         public int MinSpeed { get; set; } = SlowestSpeed;
 
         public int MaxSpeed { get; set; } = FastestSpeed;
+
+        /// <summary>
+        /// Rows a drop spans, drawn log-uniformly between the two bounds.
+        /// </summary>
+        public int MinWordLength { get; set; } = 3;
+
+        public int MaxWordLength { get; set; } = 30;
 
         /// <summary>
         /// Share of the drops that flash down the whole screen, in percent.
@@ -160,6 +169,8 @@ namespace MatrixScreenSaver
             MidStartPercent = Math.Clamp(MidStartPercent, 0, 100);
             MinSpeed = Math.Clamp(MinSpeed, SlowestSpeed, FastestSpeed);
             MaxSpeed = Math.Clamp(MaxSpeed, MinSpeed, FastestSpeed);
+            MinWordLength = Math.Clamp(MinWordLength, ShortestWordLength, LongestWordLength);
+            MaxWordLength = Math.Clamp(MaxWordLength, MinWordLength, LongestWordLength);
             FlashDropPercent = Math.Clamp(FlashDropPercent, 0, 100);
             DropStopPercent = Math.Clamp(DropStopPercent, 0, 100);
             StuckPercent = Math.Clamp(StuckPercent, 0, 100);

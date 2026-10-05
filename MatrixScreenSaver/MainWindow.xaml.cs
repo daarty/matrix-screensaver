@@ -162,20 +162,15 @@ namespace MatrixScreenSaver
                 QueueRedraw(column, row, changedValues);
             }
 
-            // No update if the minimal brush is already applied.
-            // Sometimes just don't update the current one, depending on the speed. So it gets "stuck" more often.
-            if (thisCharacter.Brush != 0 && random.Next(thisCharacter.Speed) != 0)
-            {
-                thisCharacter.Brush--;
+            int fade = thisCharacter.Brush == 0 ? 0 : FadeLevels(thisCharacter);
 
-                // If the character is still not on minimum colour, sometimes turn down one more.
-                if (thisCharacter.Brush != 0 && thisCharacter.Brush < ColorPalette.Size - 2 && random.Next(10) == 0)
-                {
-                    thisCharacter.Brush--;
-                }
+            if (fade > 0)
+            {
+                thisCharacter.Brush = Math.Max(0, thisCharacter.Brush - fade);
 
                 // Sometimes simply don't update the color so it gets stuck on the screen.
-                if (random.Next(100) >= settings.StuckPercent)
+                // The chance counts per level, otherwise a short word fading several levels per frame leaves brighter residues.
+                if (random.NextDouble() >= Math.Pow(settings.StuckPercent / 100.0, fade))
                 {
                     QueueRedraw(column, row, changedValues);
                 }
@@ -195,6 +190,7 @@ namespace MatrixScreenSaver
                     nextCharacter.Brush = ColorPalette.Size - 1;
                     nextCharacter.Character = RandomCharacter();
                     nextCharacter.Speed = dropAbove.Speed;
+                    nextCharacter.WordLength = dropAbove.WordLength;
                     nextCharacter.IsFlash = dropAbove.IsFlash;
                     nextCharacter.IsFlicker = false;
                     nextCharacter.Palette = dropAbove.Palette;
@@ -213,6 +209,7 @@ namespace MatrixScreenSaver
 
                 thisCharacter.Character = RandomCharacter();
                 thisCharacter.Speed = dropAbove.Speed;
+                thisCharacter.WordLength = dropAbove.WordLength;
                 thisCharacter.IsFlash = dropAbove.IsFlash;
                 thisCharacter.Palette = dropAbove.Palette;
 
@@ -220,6 +217,21 @@ namespace MatrixScreenSaver
             }
 
             return createdNextCharacter;
+        }
+
+        /// <returns>Levels the character darkens this frame.</returns>
+        private int FadeLevels(MatrixCharacter character)
+        {
+            // The head moves on with the drop's speed, speed 1 never moves.
+            if (character.Brush == ColorPalette.Size - 1)
+            {
+                return random.Next(character.Speed) != 0 ? 1 : 0;
+            }
+
+            // The trail fades out in the frames the head needs for WordLength rows, so the visible length does not depend on the speed.
+            int levelsPerFrame = (ColorPalette.Size - 2) * (character.Speed - 1) * 256 / (character.Speed * character.WordLength);
+
+            return levelsPerFrame / 256 + (random.Next(256) < levelsPerFrame % 256 ? 1 : 0);
         }
 
         private void QueueRedraw(int column, int row, List<Coordinate> changedValues)
@@ -593,6 +605,9 @@ namespace MatrixScreenSaver
             newCharacter.FlickerCountdown = newCharacter.IsFlicker ? FlickerInterval(newCharacter.Speed) : 0;
             newCharacter.Palette = settings.ColorMode == ColorMode.RainbowDrops ? random.Next(RainbowHues) : 0;
 
+            // A flash drop fades one level per frame, its jumps already stretch the trail.
+            newCharacter.WordLength = newCharacter.IsFlash ? ColorPalette.Size - 2 : RandomWordLength();
+
             QueueRedraw(column, row, changedValues);
         }
 
@@ -609,6 +624,15 @@ namespace MatrixScreenSaver
             }
 
             return random.Next(slowest, fastest + 1);
+        }
+
+        private int RandomWordLength()
+        {
+            // Log-uniform, so short words are as common as long ones.
+            double logMin = Math.Log(settings.MinWordLength);
+            double logMax = Math.Log(settings.MaxWordLength + 1);
+
+            return Math.Clamp((int)Math.Exp(logMin + random.NextDouble() * (logMax - logMin)), settings.MinWordLength, settings.MaxWordLength);
         }
 
         private char RandomCharacter()
