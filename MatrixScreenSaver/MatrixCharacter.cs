@@ -49,6 +49,10 @@ namespace MatrixScreenSaver
         };
 
         public int Brush { get; set; } = 0;
+
+        // Level on the screen; falls behind Brush when a frame skips the redraw and leaves the character standing.
+        public int DisplayedBrush { get; set; }
+
         public char Character { get; set; } = ' ';
         public int Speed { get; set; } = 0;
 

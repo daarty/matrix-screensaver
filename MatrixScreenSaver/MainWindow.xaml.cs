@@ -150,7 +150,7 @@ namespace MatrixScreenSaver
                 // Sometimes simply don't update the color so it gets stuck on the screen.
                 if (random.Next(3) > 0)
                 {
-                    changedValues.Add(new Coordinate { Column = column, Row = row });
+                    QueueRedraw(column, row, changedValues);
                 }
             }
 
@@ -170,7 +170,7 @@ namespace MatrixScreenSaver
                     nextCharacter.IsFlash = dropAbove.IsFlash;
                     nextCharacter.Palette = dropAbove.Palette;
 
-                    changedValues.Add(new Coordinate { Column = column, Row = row + 1 });
+                    QueueRedraw(column, row + 1, changedValues);
 
                     thisCharacter.Brush = ColorPalette.Size - 2;
 
@@ -187,10 +187,18 @@ namespace MatrixScreenSaver
                 thisCharacter.IsFlash = dropAbove.IsFlash;
                 thisCharacter.Palette = dropAbove.Palette;
 
-                changedValues.Add(new Coordinate { Column = column, Row = row });
+                QueueRedraw(column, row, changedValues);
             }
 
             return createdNextCharacter;
+        }
+
+        private void QueueRedraw(int column, int row, List<Coordinate> changedValues)
+        {
+            MatrixCharacter character = MatrixGrid[column, row];
+            character.DisplayedBrush = character.Brush;
+
+            changedValues.Add(new Coordinate { Column = column, Row = row });
         }
 
         private void CreateScene()
@@ -287,7 +295,7 @@ namespace MatrixScreenSaver
         private unsafe void DrawCell(byte* backBuffer, int stride, int column, int row)
         {
             MatrixCharacter character = MatrixGrid[column, row];
-            int colorOffset = (character.Palette * ColorPalette.Size + character.Brush) * 256;
+            int colorOffset = (character.Palette * ColorPalette.Size + character.DisplayedBrush) * 256;
             int maskOffset = glyphIndices.TryGetValue(character.Character, out int glyph) ? glyph * cellPixels * cellPixels : -1;
 
             for (int y = 0; y < cellPixels; y++)
@@ -319,12 +327,15 @@ namespace MatrixScreenSaver
 
                 if (redrawAll)
                 {
-                    // Also the black cells: some faded out without being drawn again and still show an old color.
+                    // Black is black in every palette, and most cells are black.
                     for (int column = 0; column < columns; column++)
                     {
                         for (int row = 0; row < rows; row++)
                         {
-                            DrawCell(backBuffer, bitmap.BackBufferStride, column, row);
+                            if (MatrixGrid[column, row].DisplayedBrush != 0)
+                            {
+                                DrawCell(backBuffer, bitmap.BackBufferStride, column, row);
+                            }
                         }
                     }
 
@@ -456,7 +467,7 @@ namespace MatrixScreenSaver
             newCharacter.Speed = newCharacter.IsFlash ? MaxSpeed : random.Next(MaxSpeed) + 1;
             newCharacter.Palette = colorMode == ColorMode.RainbowDrops ? random.Next(RainbowHues) : 0;
 
-            changedValues.Add(new Coordinate { Column = column, Row = row });
+            QueueRedraw(column, row, changedValues);
         }
 
         private char RandomCharacter()
