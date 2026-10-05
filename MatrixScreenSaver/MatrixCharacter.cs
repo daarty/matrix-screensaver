@@ -59,6 +59,9 @@ namespace MatrixScreenSaver
         // A flash drop runs down the whole screen within a frame or two.
         public bool IsFlash { get; set; }
 
+        // Stays in place and changes its character now and then instead of moving on.
+        public bool IsFlicker { get; set; }
+
         // Index of the palette the drop is drawn with.
         public int Palette { get; set; }
 

@@ -38,9 +38,9 @@ namespace MatrixScreenSaver
     /// </summary>
     public partial class MainWindow : Window
     {
-        private const int MaxSpeed = 20;
-
-        private const double FlashDropProbability = 0.02;
+        // Flicker drops stay below half speed, and the fastest one changes its character about every eighth frame.
+        private const int MaxFlickerSpeed = ScreenSaverSettings.FastestSpeed / 2;
+        private const int FlickerFrames = 8;
 
         private const int RainbowHues = 24;
 
@@ -55,7 +55,7 @@ namespace MatrixScreenSaver
         // In screen pixels.
         private const double MouseMoveTolerance = 10;
 
-        private readonly ColorMode colorMode;
+        private readonly ScreenSaverSettings settings;
 
         // Pixel value for each palette, level and glyph coverage (0-255), blended over the black background.
         private int[] colorTable;
@@ -63,8 +63,9 @@ namespace MatrixScreenSaver
         private readonly int characterSize;
         private readonly char[] characterPool;
 
-        // Chance per column and frame to start a new drop.
-        private readonly double newDropProbability;
+        // Chance per column and frame to start a new drop in the top row or in one of the rows below.
+        private readonly double newTopDropProbability;
+        private readonly double newMidDropProbability;
 
         private Point? initialMousePosition;
 
@@ -81,14 +82,14 @@ namespace MatrixScreenSaver
 
         private Random random = new Random();
         private int rows;
-        private TimeSpan timeSpanExpected = new TimeSpan(0, 0, 0, 0, 66);
+        private readonly TimeSpan frameTime;
 
         public MainWindow(ScreenSaverSettings settings)
         {
+            this.settings = settings;
             characterSize = settings.CharacterSize;
             characterPool = MatrixCharacter.CreatePool(settings.CharacterSets);
-            colorMode = settings.ColorMode;
-            colorTable = colorMode switch
+            colorTable = settings.ColorMode switch
             {
                 ColorMode.ColorCycle => CreateColorTable(ColorPalette.Create(ColorPalette.FromHue(GreenHue))),
                 ColorMode.RainbowDrops => CreateColorTable(Enumerable.Range(0, RainbowHues)
@@ -96,7 +97,11 @@ namespace MatrixScreenSaver
                     .ToArray()),
                 _ => CreateColorTable(ColorPalette.Create(settings.BaseColorValue)),
             };
-            newDropProbability = settings.Density * timeSpanExpected.TotalMilliseconds / TimeSpan.FromMinutes(1).TotalMilliseconds;
+            frameTime = TimeSpan.FromSeconds(1.0 / settings.FramesPerSecond);
+
+            double newDropProbability = settings.Density * frameTime.TotalMilliseconds / TimeSpan.FromMinutes(1).TotalMilliseconds;
+            newMidDropProbability = newDropProbability * settings.MidStartPercent / 100;
+            newTopDropProbability = newDropProbability - newMidDropProbability;
 
             InitializeComponent();
             this.Loaded += MainWindow_Loaded;
@@ -134,6 +139,21 @@ namespace MatrixScreenSaver
         {
             var thisCharacter = MatrixGrid[column, row];
             bool createdNextCharacter = false;
+            bool headAbove = row > 0 && MatrixGrid[column, row - 1].Brush == ColorPalette.Size - 2;
+
+            if (thisCharacter.IsFlicker)
+            {
+                if (!headAbove)
+                {
+                    Flicker(column, row, changedValues);
+                    return false;
+                }
+
+                // A drop from above runs over the flickering character.
+                thisCharacter.IsFlicker = false;
+                thisCharacter.Brush = 0;
+                QueueRedraw(column, row, changedValues);
+            }
 
             // No update if the minimal brush is already applied.
             // Sometimes just don't update the current one, depending on the speed. So it gets "stuck" more often.
@@ -148,26 +168,28 @@ namespace MatrixScreenSaver
                 }
 
                 // Sometimes simply don't update the color so it gets stuck on the screen.
-                if (random.Next(3) > 0)
+                if (random.Next(100) >= settings.StuckPercent)
                 {
                     QueueRedraw(column, row, changedValues);
                 }
             }
 
-            // If not first row and
-            // if the letter above is one less than white -> create next letter in the current row
-            else if (row > 0 && MatrixGrid[column, row - 1].Brush == ColorPalette.Size - 2)
+            // If the letter above is one less than white -> create next letter in the current row.
+            // A flash drop always runs to the bottom, any other may end here.
+            else if (headAbove && (MatrixGrid[column, row - 1].IsFlash || random.Next(100) >= settings.DropStopPercent))
             {
                 var dropAbove = MatrixGrid[column, row - 1];
 
                 // If not in last row and at high speed, sometimes jump two blocks
-                if (row < rows - 1 && dropAbove.Speed > MaxSpeed / 2 && random.Next(MaxSpeed - dropAbove.Speed) == 0)
+                if (row < rows - 1 && dropAbove.Speed > ScreenSaverSettings.FastestSpeed / 2
+                    && random.Next(ScreenSaverSettings.FastestSpeed - dropAbove.Speed) == 0)
                 {
                     var nextCharacter = MatrixGrid[column, row + 1];
                     nextCharacter.Brush = ColorPalette.Size - 1;
                     nextCharacter.Character = RandomCharacter();
                     nextCharacter.Speed = dropAbove.Speed;
                     nextCharacter.IsFlash = dropAbove.IsFlash;
+                    nextCharacter.IsFlicker = false;
                     nextCharacter.Palette = dropAbove.Palette;
 
                     QueueRedraw(column, row + 1, changedValues);
@@ -199,6 +221,29 @@ namespace MatrixScreenSaver
             character.DisplayedBrush = character.Brush;
 
             changedValues.Add(new Coordinate { Column = column, Row = row });
+        }
+
+        private void Flicker(int column, int row, List<Coordinate> changedValues)
+        {
+            MatrixCharacter character = MatrixGrid[column, row];
+
+            if (random.Next(FlickerFrames * MaxFlickerSpeed / character.Speed) != 0)
+            {
+                return;
+            }
+
+            if (random.Next(100) < settings.FlickerStopPercent)
+            {
+                // One level below the head, so the row below does not take it up as a moving drop.
+                character.IsFlicker = false;
+                character.Brush = ColorPalette.Size - 3;
+            }
+            else
+            {
+                character.Character = RandomCharacter();
+            }
+
+            QueueRedraw(column, row, changedValues);
         }
 
         private void CreateScene()
@@ -417,14 +462,13 @@ namespace MatrixScreenSaver
 
                 for (int column = 0; column < columns; column++)
                 {
-                    // Half of the drops start at the top. Each row below starts one with 1 / (rows - 1) of that
-                    // chance, which gives the other half.
-                    if (random.NextDouble() < newDropProbability / 2)
+                    if (random.NextDouble() < newTopDropProbability)
                     {
                         StartDrop(column, 0, changedValues);
                     }
 
-                    if (rows > 1 && random.NextDouble() < newDropProbability / 2)
+                    // One drop for all rows below, so each of them gets 1 / (rows - 1) of the chance.
+                    if (rows > 1 && random.NextDouble() < newMidDropProbability)
                     {
                         StartDrop(column, random.Next(1, rows), changedValues);
                     }
@@ -432,7 +476,7 @@ namespace MatrixScreenSaver
 
                 bool colorsChanged = false;
 
-                if (colorMode == ColorMode.ColorCycle && ++frame % ColorCycleFrames == 0)
+                if (settings.ColorMode == ColorMode.ColorCycle && ++frame % ColorCycleFrames == 0)
                 {
                     double hue = GreenHue + colorCycleClock.Elapsed.TotalSeconds * 360 / ColorCycleSeconds;
                     colorTable = CreateColorTable(ColorPalette.Create(ColorPalette.FromHue(hue)));
@@ -454,7 +498,7 @@ namespace MatrixScreenSaver
 
                 Console.WriteLine($"Run took {timeSpan} ms");
 
-                Thread.Sleep(Math.Max(1, (int)timeSpanExpected.Subtract(timeSpan).TotalMilliseconds));
+                Thread.Sleep(Math.Max(1, (int)frameTime.Subtract(timeSpan).TotalMilliseconds));
             }
         }
 
@@ -463,11 +507,33 @@ namespace MatrixScreenSaver
             var newCharacter = MatrixGrid[column, row];
             newCharacter.Brush = ColorPalette.Size - 1;
             newCharacter.Character = RandomCharacter();
-            newCharacter.IsFlash = random.NextDouble() < FlashDropProbability;
-            newCharacter.Speed = newCharacter.IsFlash ? MaxSpeed : random.Next(MaxSpeed) + 1;
-            newCharacter.Palette = colorMode == ColorMode.RainbowDrops ? random.Next(RainbowHues) : 0;
+            newCharacter.IsFlash = random.Next(100) < settings.FlashDropPercent;
+            newCharacter.IsFlicker = row > 0 && !newCharacter.IsFlash && random.Next(100) < settings.FlickerDropPercent;
+            newCharacter.Speed = newCharacter.IsFlash ? ScreenSaverSettings.FastestSpeed : RandomSpeed(row, newCharacter.IsFlicker);
+            newCharacter.Palette = settings.ColorMode == ColorMode.RainbowDrops ? random.Next(RainbowHues) : 0;
 
             QueueRedraw(column, row, changedValues);
+        }
+
+        private int RandomSpeed(int row, bool isFlicker)
+        {
+            int slowest = settings.MinSpeed;
+            int fastest = settings.MaxSpeed;
+
+            if (isFlicker)
+            {
+                fastest = Math.Min(fastest, MaxFlickerSpeed);
+                slowest = Math.Min(slowest, fastest);
+            }
+
+            // Speed 1 never fades: from the top row it would pile up white characters, a stopped flicker drop would never go.
+            if (row == 0 || isFlicker)
+            {
+                slowest = Math.Max(slowest, ScreenSaverSettings.SlowestSpeed + 1);
+                fastest = Math.Max(fastest, slowest);
+            }
+
+            return random.Next(slowest, fastest + 1);
         }
 
         private char RandomCharacter()

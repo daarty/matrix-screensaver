@@ -24,6 +24,10 @@ namespace MatrixScreenSaver
         public const int MaxCharacterSize = 64;
         public const int MinDensity = 1;
         public const int MaxDensity = 20;
+        public const int SlowestSpeed = 1;
+        public const int FastestSpeed = 20;
+        public const int MinFramesPerSecond = 1;
+        public const int MaxFramesPerSecond = 60;
 
         private const CharacterSets DefaultCharacterSets = CharacterSets.Latin | CharacterSets.Katakana | CharacterSets.Digits | CharacterSets.Symbols;
 
@@ -54,6 +58,47 @@ namespace MatrixScreenSaver
 
         [JsonIgnore]
         public Color BaseColorValue => TryParseColor(BaseColor, out Color color) ? color : ColorPalette.DefaultBaseColor;
+
+        /// <summary>
+        /// Share of the new drops that start below the top row, in percent.
+        /// </summary>
+        public int MidStartPercent { get; set; } = 50;
+
+        public int MinSpeed { get; set; } = SlowestSpeed;
+
+        public int MaxSpeed { get; set; } = FastestSpeed;
+
+        /// <summary>
+        /// Share of the drops that flash down the whole screen, in percent.
+        /// </summary>
+        public int FlashDropPercent { get; set; } = 2;
+
+        /// <summary>
+        /// Chance per row that a drop ends before it reaches the bottom, in percent.
+        /// </summary>
+        public int DropStopPercent { get; set; } = 0;
+
+        /// <summary>
+        /// Chance per frame that a fading character keeps its color on the screen, in percent.
+        /// </summary>
+        public int StuckPercent { get; set; } = 33;
+
+        /// <summary>
+        /// Share of the drops below the top row that stay in place and flicker, in percent.
+        /// </summary>
+        public int FlickerDropPercent { get; set; } = 3;
+
+        /// <summary>
+        /// Chance per flicker that such a drop fades out, in percent.
+        /// </summary>
+        public int FlickerStopPercent { get; set; } = 5;
+
+        public int FramesPerSecond { get; set; } = 15;
+
+        public ScreenSaverSettings Clone()
+        {
+            return (ScreenSaverSettings)MemberwiseClone();
+        }
 
         public static ScreenSaverSettings Load()
         {
@@ -86,6 +131,15 @@ namespace MatrixScreenSaver
         {
             CharacterSize = Math.Clamp(CharacterSize, MinCharacterSize, MaxCharacterSize);
             Density = Math.Clamp(Density, MinDensity, MaxDensity);
+            MidStartPercent = Math.Clamp(MidStartPercent, 0, 100);
+            MinSpeed = Math.Clamp(MinSpeed, SlowestSpeed, FastestSpeed);
+            MaxSpeed = Math.Clamp(MaxSpeed, MinSpeed, FastestSpeed);
+            FlashDropPercent = Math.Clamp(FlashDropPercent, 0, 100);
+            DropStopPercent = Math.Clamp(DropStopPercent, 0, 100);
+            StuckPercent = Math.Clamp(StuckPercent, 0, 100);
+            FlickerDropPercent = Math.Clamp(FlickerDropPercent, 0, 100);
+            FlickerStopPercent = Math.Clamp(FlickerStopPercent, 0, 100);
+            FramesPerSecond = Math.Clamp(FramesPerSecond, MinFramesPerSecond, MaxFramesPerSecond);
 
             if (MatrixCharacter.CreatePool(CharacterSets).Length == 0)
             {
