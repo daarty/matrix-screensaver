@@ -89,9 +89,14 @@ namespace MatrixScreenSaver
         public int FlickerDropPercent { get; set; } = 3;
 
         /// <summary>
-        /// Chance per flicker that such a drop fades out, in percent.
+        /// Chance per flicker that such a drop stops flickering, in percent.
         /// </summary>
         public int FlickerStopPercent { get; set; } = 5;
+
+        /// <summary>
+        /// Share of the stopping flicker drops that run down from there instead of fading out, in percent.
+        /// </summary>
+        public int FlickerMovePercent { get; set; } = 25;
 
         public int FramesPerSecond { get; set; } = 15;
 
@@ -139,6 +144,7 @@ namespace MatrixScreenSaver
             StuckPercent = Math.Clamp(StuckPercent, 0, 100);
             FlickerDropPercent = Math.Clamp(FlickerDropPercent, 0, 100);
             FlickerStopPercent = Math.Clamp(FlickerStopPercent, 0, 100);
+            FlickerMovePercent = Math.Clamp(FlickerMovePercent, 0, 100);
             FramesPerSecond = Math.Clamp(FramesPerSecond, MinFramesPerSecond, MaxFramesPerSecond);
 
             if (MatrixCharacter.CreatePool(CharacterSets).Length == 0)

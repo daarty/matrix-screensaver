@@ -47,7 +47,8 @@ namespace MatrixScreenSaver
             AddAdvancedSlider("Chance per row that a drop ends (%)", 0, 100, s => s.DropStopPercent, (s, v) => s.DropStopPercent = v);
             AddAdvancedSlider("Chance per frame that a fading character stays (%)", 0, 100, s => s.StuckPercent, (s, v) => s.StuckPercent = v);
             AddAdvancedSlider("Drops below the top row that stay and flicker (%)", 0, 100, s => s.FlickerDropPercent, (s, v) => s.FlickerDropPercent = v);
-            AddAdvancedSlider("Chance per flicker that such a drop fades out (%)", 0, 100, s => s.FlickerStopPercent, (s, v) => s.FlickerStopPercent = v);
+            AddAdvancedSlider("Chance per flicker that such a drop stops (%)", 0, 100, s => s.FlickerStopPercent, (s, v) => s.FlickerStopPercent = v);
+            AddAdvancedSlider("Stopping flicker drops that run down instead of fading (%)", 0, 100, s => s.FlickerMovePercent, (s, v) => s.FlickerMovePercent = v);
             AddAdvancedSlider("Frames per second", ScreenSaverSettings.MinFramesPerSecond, ScreenSaverSettings.MaxFramesPerSecond, s => s.FramesPerSecond, (s, v) => s.FramesPerSecond = v);
 
             // Moving one speed slider past the other takes the other along.

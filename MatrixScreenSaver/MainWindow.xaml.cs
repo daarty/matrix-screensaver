@@ -38,9 +38,9 @@ namespace MatrixScreenSaver
     /// </summary>
     public partial class MainWindow : Window
     {
-        // Flicker drops stay below half speed, and the fastest one changes its character about every eighth frame.
-        private const int MaxFlickerSpeed = ScreenSaverSettings.FastestSpeed / 2;
-        private const int FlickerFrames = 8;
+        // Changes per second of a flicker drop at the slowest and at the fastest speed.
+        private const double MinFlickersPerSecond = 1;
+        private const double MaxFlickersPerSecond = 4;
 
         private const int RainbowHues = 24;
 
@@ -227,16 +227,22 @@ namespace MatrixScreenSaver
         {
             MatrixCharacter character = MatrixGrid[column, row];
 
-            if (random.Next(FlickerFrames * MaxFlickerSpeed / character.Speed) != 0)
+            if (--character.FlickerCountdown > 0)
             {
                 return;
             }
 
+            character.FlickerCountdown = FlickerInterval(character.Speed);
+
             if (random.Next(100) < settings.FlickerStopPercent)
             {
-                // One level below the head, so the row below does not take it up as a moving drop.
                 character.IsFlicker = false;
-                character.Brush = ColorPalette.Size - 3;
+
+                // At the head level the row below takes it up and it runs down from here, one level lower it only fades.
+                if (random.Next(100) >= settings.FlickerMovePercent)
+                {
+                    character.Brush = ColorPalette.Size - 3;
+                }
             }
             else
             {
@@ -244,6 +250,15 @@ namespace MatrixScreenSaver
             }
 
             QueueRedraw(column, row, changedValues);
+        }
+
+        /// <returns>Frames between two changes; the speed maps linearly onto the flicker rate.</returns>
+        private int FlickerInterval(int speed)
+        {
+            double flickersPerSecond = MinFlickersPerSecond + (MaxFlickersPerSecond - MinFlickersPerSecond)
+                * (speed - ScreenSaverSettings.SlowestSpeed) / (ScreenSaverSettings.FastestSpeed - ScreenSaverSettings.SlowestSpeed);
+
+            return Math.Max(1, (int)Math.Round(settings.FramesPerSecond / flickersPerSecond));
         }
 
         private void CreateScene()
@@ -510,6 +525,7 @@ namespace MatrixScreenSaver
             newCharacter.IsFlash = random.Next(100) < settings.FlashDropPercent;
             newCharacter.IsFlicker = row > 0 && !newCharacter.IsFlash && random.Next(100) < settings.FlickerDropPercent;
             newCharacter.Speed = newCharacter.IsFlash ? ScreenSaverSettings.FastestSpeed : RandomSpeed(row, newCharacter.IsFlicker);
+            newCharacter.FlickerCountdown = newCharacter.IsFlicker ? FlickerInterval(newCharacter.Speed) : 0;
             newCharacter.Palette = settings.ColorMode == ColorMode.RainbowDrops ? random.Next(RainbowHues) : 0;
 
             QueueRedraw(column, row, changedValues);
@@ -519,12 +535,6 @@ namespace MatrixScreenSaver
         {
             int slowest = settings.MinSpeed;
             int fastest = settings.MaxSpeed;
-
-            if (isFlicker)
-            {
-                fastest = Math.Min(fastest, MaxFlickerSpeed);
-                slowest = Math.Min(slowest, fastest);
-            }
 
             // Speed 1 never fades: from the top row it would pile up white characters, a stopped flicker drop would never go.
             if (row == 0 || isFlicker)
