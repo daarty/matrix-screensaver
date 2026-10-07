@@ -55,7 +55,8 @@ namespace MatrixScreenSaver
                     window.Height = s.Bounds.Height / dpi.DpiScaleY;
 
                     // Maximizing fits the window exactly to its monitor, even if that monitor has a different scaling.
-                    window.WindowState = WindowState.Maximized;
+                    // Before the window exists, WPF would maximize it on the primary monitor instead.
+                    window.SourceInitialized += (o, args) => window.WindowState = WindowState.Maximized;
                     window.Show();
                 }
             }
