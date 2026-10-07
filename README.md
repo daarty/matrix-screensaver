@@ -1,10 +1,32 @@
 # Matrix Screensaver
 
-Digital rain in the style of The Matrix as a Windows screensaver, written in WPF on .NET 10.
-Based on WBS Screensaver by Wm. Barrett Simms.
+A Windows screensaver with digital rain, inspired by the movie The Matrix.
+This is a personal tribute — no copyright on the film, its title or its look is claimed.
 
 It began as a hobby project, slept through a long hibernation phase, and was finally finished
-to my satisfaction with heavy use of Claude and Mistral.
+to my satisfaction with heavy use of Claude and Mistral. Written in WPF on .NET 10,
+based on WBS Screensaver by Wm. Barrett Simms.
+
+## This is what it looks like
+
+![Classic green digital rain](docs/classic-green.gif)
+
+## Many settings
+
+Character size, density, character sets, colors, glow and a whole section of advanced
+rain behavior — the settings dialog covers it all.
+
+![Settings dialog](docs/settings.png)
+
+## Customize it to your liking
+
+Not a green person? Cycle the whole rain through the color wheel:
+
+![The rain cycling through all colors](docs/rgb-cycle.gif)
+
+Or give every drop its own color:
+
+![Every drop in its own color](docs/rainbow-drops.gif)
 
 ## Features
 
@@ -46,6 +68,11 @@ it, select another screensaver and delete the file. The settings are stored in
 | `/c`, none | Show the settings. |
 | `/p <HWND>` | Draw the preview into the given window. |
 
-## License
+## License and disclaimer
 
-MIT, see [LICENSE](LICENSE). Based on WBS Screensaver by Wm. Barrett Simms.
+The code is MIT licensed, see [LICENSE](LICENSE).
+
+This project is a fan tribute. It is not affiliated with, endorsed by or connected to
+The Matrix, its creators or Warner Bros. — all film-related names and trademarks belong
+to their owners. The software is provided "as is", without any warranty. I am not liable
+for anything this code does or fails to do.
