@@ -7,47 +7,95 @@
         ResizeMode="NoResize"
         SizeToContent="Height"
         WindowStartupLocation="CenterScreen">
-    <StackPanel Margin="16">
-        <TextBlock Text="Character size" />
-        <DockPanel Margin="0,4,0,0">
-            <TextBlock Width="40"
-                       DockPanel.Dock="Right"
-                       Text="{Binding Value, ElementName=CharacterSizeSlider}"
-                       TextAlignment="Right" />
-            <Slider x:Name="CharacterSizeSlider"
-                    IsSnapToTickEnabled="True"
-                    TickFrequency="1" />
-        </DockPanel>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="16">
+            <TextBlock Text="Character size" />
+            <DockPanel Margin="0,4,0,0">
+                <TextBlock Width="40"
+                           DockPanel.Dock="Right"
+                           Text="{Binding Value, ElementName=CharacterSizeSlider}"
+                           TextAlignment="Right" />
+                <Slider x:Name="CharacterSizeSlider"
+                        IsSnapToTickEnabled="True"
+                        TickFrequency="1" />
+            </DockPanel>
 
-        <TextBlock Margin="0,16,0,0" Text="Density (new drops per column and minute)" />
-        <DockPanel Margin="0,4,0,0">
-            <TextBlock Width="40"
-                       DockPanel.Dock="Right"
-                       Text="{Binding Value, ElementName=DensitySlider}"
-                       TextAlignment="Right" />
-            <Slider x:Name="DensitySlider"
-                    IsSnapToTickEnabled="True"
-                    TickFrequency="1" />
-        </DockPanel>
+            <TextBlock Margin="0,16,0,0" Text="Density (new drops per column and minute)" />
+            <DockPanel Margin="0,4,0,0">
+                <TextBlock Width="40"
+                           DockPanel.Dock="Right"
+                           Text="{Binding Value, ElementName=DensitySlider}"
+                           TextAlignment="Right" />
+                <Slider x:Name="DensitySlider"
+                        IsSnapToTickEnabled="True"
+                        TickFrequency="1" />
+            </DockPanel>
 
-        <TextBlock Margin="0,16,0,4" Text="Character sets" />
-        <WrapPanel x:Name="CharacterSetPanel" />
+            <TextBlock Margin="0,16,0,4" Text="Character sets" />
+            <WrapPanel x:Name="CharacterSetPanel" />
 
-        <StackPanel Margin="0,16,0,0"
-                    HorizontalAlignment="Right"
-                    Orientation="Horizontal">
-            <Button Width="80"
-                    Click="DefaultsClick"
-                    Content="Defaults" />
-            <Button Width="80"
-                    Margin="8,0,0,0"
-                    Click="OkClick"
-                    Content="OK"
-                    IsDefault="True" />
-            <Button Width="80"
-                    Margin="8,0,0,0"
-                    Content="Cancel"
-                    IsCancel="True" />
+            <TextBlock Margin="0,16,0,4" Text="Colors" />
+            <DockPanel>
+                <Button x:Name="ColorButton"
+                        Width="80"
+                        Click="ColorButtonClick"
+                        Content="Choose..."
+                        DockPanel.Dock="Right" />
+                <RadioButton x:Name="SingleColorRadio"
+                             VerticalAlignment="Center"
+                             Checked="ColorModeChecked"
+                             Content="One color"
+                             GroupName="ColorMode" />
+            </DockPanel>
+            <RadioButton x:Name="ColorCycleRadio"
+                         Margin="0,4,0,0"
+                         Checked="ColorModeChecked"
+                         Content="Cycle through all colors"
+                         GroupName="ColorMode" />
+            <RadioButton x:Name="RainbowDropsRadio"
+                         Margin="0,4,0,0"
+                         Checked="ColorModeChecked"
+                         Content="Every drop in its own color"
+                         GroupName="ColorMode" />
+            <UniformGrid x:Name="ColorPreview"
+                         Height="16"
+                         Margin="0,8,0,0"
+                         Rows="1" />
+
+            <CheckBox x:Name="GlowBox"
+                      Margin="0,16,0,0"
+                      Content="Glow around bright characters" />
+            <StackPanel x:Name="GlowPanel"
+                        Margin="0,8,0,0"
+                        IsEnabled="{Binding IsChecked, ElementName=GlowBox}" />
+
+            <Expander Margin="0,16,0,0" Header="Advanced">
+                <StackPanel Margin="0,8,0,0">
+                    <StackPanel x:Name="AdvancedPanel" />
+                    <Button Width="80"
+                            Margin="0,12,0,0"
+                            HorizontalAlignment="Right"
+                            Click="AdvancedDefaultsClick"
+                            Content="Defaults" />
+                </StackPanel>
+            </Expander>
+
+            <StackPanel Margin="0,16,0,0"
+                        HorizontalAlignment="Right"
+                        Orientation="Horizontal">
+                <Button Width="80"
+                        Click="DefaultsClick"
+                        Content="Defaults" />
+                <Button Width="80"
+                        Margin="8,0,0,0"
+                        Click="OkClick"
+                        Content="OK"
+                        IsDefault="True" />
+                <Button Width="80"
+                        Margin="8,0,0,0"
+                        Content="Cancel"
+                        IsCancel="True" />
+            </StackPanel>
         </StackPanel>
-    </StackPanel>
+    </ScrollViewer>
 </Window>

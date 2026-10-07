@@ -55,7 +55,8 @@ namespace MatrixScreenSaver
                     window.Height = s.Bounds.Height / dpi.DpiScaleY;
 
                     // Maximizing fits the window exactly to its monitor, even if that monitor has a different scaling.
-                    window.WindowState = WindowState.Maximized;
+                    // Before the window exists, WPF would maximize it on the primary monitor instead.
+                    window.SourceInitialized += (o, args) => window.WindowState = WindowState.Maximized;
                     window.Show();
                 }
             }
@@ -71,12 +72,10 @@ namespace MatrixScreenSaver
                 }
 
                 // The preview area is tiny, so it shows the smallest characters.
-                var previewSettings = new ScreenSaverSettings
-                {
-                    CharacterSize = ScreenSaverSettings.MinCharacterSize,
-                    CharacterSets = settings.CharacterSets,
-                    Density = settings.Density,
-                };
+                ScreenSaverSettings previewSettings = settings.Clone();
+                previewSettings.CharacterSize = ScreenSaverSettings.MinCharacterSize;
+                previewSettings.GlowRadius = Math.Max(
+                    ScreenSaverSettings.MinGlowRadius, settings.GlowRadius * ScreenSaverSettings.MinCharacterSize / settings.CharacterSize);
 
                 IntPtr pPreviewHnd = new IntPtr(previewHandle);
                 RECT lpRect = new RECT();

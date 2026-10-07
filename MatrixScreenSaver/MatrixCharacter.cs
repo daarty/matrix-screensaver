@@ -49,11 +49,27 @@ namespace MatrixScreenSaver
         };
 
         public int Brush { get; set; } = 0;
+
+        // Level on the screen; falls behind Brush when a frame skips the redraw and leaves the character standing.
+        public int DisplayedBrush { get; set; }
+
         public char Character { get; set; } = ' ';
         public int Speed { get; set; } = 0;
 
+        // Rows the drop spans from its head to the last visible character of its trail.
+        public int WordLength { get; set; }
+
         // A flash drop runs down the whole screen within a frame or two.
         public bool IsFlash { get; set; }
+
+        // Stays in place and changes its character at a steady rate instead of moving on.
+        public bool IsFlicker { get; set; }
+
+        // In frames.
+        public int FlickerCountdown { get; set; }
+
+        // Index of the palette the drop is drawn with.
+        public int Palette { get; set; }
 
         public static char[] CreatePool(CharacterSets sets)
         {

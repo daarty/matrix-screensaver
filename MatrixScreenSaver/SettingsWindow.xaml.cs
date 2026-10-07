@@ -1,8 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace MatrixScreenSaver
 {
@@ -10,9 +15,18 @@ namespace MatrixScreenSaver
     {
         private readonly Dictionary<CharacterSets, CheckBox> characterSetBoxes = new Dictionary<CharacterSets, CheckBox>();
 
+        private readonly List<(Slider Slider, Func<ScreenSaverSettings, int> Get, Action<ScreenSaverSettings, int> Set)> glowSliders = new();
+        private readonly List<(Slider Slider, Func<ScreenSaverSettings, int> Get, Action<ScreenSaverSettings, int> Set)> advancedSliders = new();
+
+        private Color baseColor;
+
         public SettingsWindow(ScreenSaverSettings settings)
         {
             InitializeComponent();
+
+            // Keep the window within the work area when SizeToContent would
+            // grow it past the screen; the ScrollViewer then takes over.
+            MaxHeight = SystemParameters.WorkArea.Height;
 
             CharacterSizeSlider.Minimum = ScreenSaverSettings.MinCharacterSize;
             CharacterSizeSlider.Maximum = ScreenSaverSettings.MaxCharacterSize;
@@ -31,23 +45,162 @@ namespace MatrixScreenSaver
                 CharacterSetPanel.Children.Add(box);
             }
 
+            AddSlider(GlowPanel, glowSliders, "Glow intensity (%)", 0, 100, s => s.GlowIntensityPercent, (s, v) => s.GlowIntensityPercent = v);
+            AddSlider(GlowPanel, glowSliders, "Glow radius", ScreenSaverSettings.MinGlowRadius, ScreenSaverSettings.MaxGlowRadius, s => s.GlowRadius, (s, v) => s.GlowRadius = v);
+
+            AddAdvancedSlider("Drops starting below the top row (%)", 0, 100, s => s.MidStartPercent, (s, v) => s.MidStartPercent = v);
+            Slider minSpeedSlider = AddAdvancedSlider("Slowest drop speed", ScreenSaverSettings.SlowestSpeed, ScreenSaverSettings.FastestSpeed, s => s.MinSpeed, (s, v) => s.MinSpeed = v);
+            Slider maxSpeedSlider = AddAdvancedSlider("Fastest drop speed", ScreenSaverSettings.SlowestSpeed, ScreenSaverSettings.FastestSpeed, s => s.MaxSpeed, (s, v) => s.MaxSpeed = v);
+            Slider minLengthSlider = AddAdvancedSlider("Shortest word length (rows)", ScreenSaverSettings.ShortestWordLength, ScreenSaverSettings.LongestWordLength, s => s.MinWordLength, (s, v) => s.MinWordLength = v);
+            Slider maxLengthSlider = AddAdvancedSlider("Longest word length (rows)", ScreenSaverSettings.ShortestWordLength, ScreenSaverSettings.LongestWordLength, s => s.MaxWordLength, (s, v) => s.MaxWordLength = v);
+            AddAdvancedSlider("Drops flashing down the whole screen (%)", 0, 100, s => s.FlashDropPercent, (s, v) => s.FlashDropPercent = v);
+            AddAdvancedSlider("Chance per row that a drop ends (%)", 0, 100, s => s.DropStopPercent, (s, v) => s.DropStopPercent = v);
+            AddAdvancedSlider("Chance per frame that a fading character stays (%)", 0, 100, s => s.StuckPercent, (s, v) => s.StuckPercent = v);
+            AddAdvancedSlider("Drops below the top row that stay and flicker (%)", 0, 100, s => s.FlickerDropPercent, (s, v) => s.FlickerDropPercent = v);
+            AddAdvancedSlider("Chance per flicker that such a drop stops (%)", 0, 100, s => s.FlickerStopPercent, (s, v) => s.FlickerStopPercent = v);
+            AddAdvancedSlider("Stopping flicker drops that run down instead of fading (%)", 0, 100, s => s.FlickerMovePercent, (s, v) => s.FlickerMovePercent = v);
+            AddAdvancedSlider("Frames per second", ScreenSaverSettings.MinFramesPerSecond, ScreenSaverSettings.MaxFramesPerSecond, s => s.FramesPerSecond, (s, v) => s.FramesPerSecond = v);
+            AddAdvancedSlider("Lowest brightness level that glows, faintly there and fully at the head (position in the color strip)", ScreenSaverSettings.MinGlowLevel, ScreenSaverSettings.MaxGlowLevel, s => s.GlowLevel, (s, v) => s.GlowLevel = v);
+
+            CoupleRange(minSpeedSlider, maxSpeedSlider);
+            CoupleRange(minLengthSlider, maxLengthSlider);
+
             DisplaySettings(settings);
+        }
+
+        // Moving one slider past the other takes the other along.
+        private static void CoupleRange(Slider minSlider, Slider maxSlider)
+        {
+            minSlider.ValueChanged += (o, args) => maxSlider.Value = Math.Max(maxSlider.Value, args.NewValue);
+            maxSlider.ValueChanged += (o, args) => minSlider.Value = Math.Min(minSlider.Value, args.NewValue);
+        }
+
+        private Slider AddAdvancedSlider(string label, int minimum, int maximum, Func<ScreenSaverSettings, int> get, Action<ScreenSaverSettings, int> set)
+        {
+            return AddSlider(AdvancedPanel, advancedSliders, label, minimum, maximum, get, set);
+        }
+
+        private static Slider AddSlider(
+            Panel panel,
+            List<(Slider Slider, Func<ScreenSaverSettings, int> Get, Action<ScreenSaverSettings, int> Set)> sliders,
+            string label, int minimum, int maximum, Func<ScreenSaverSettings, int> get, Action<ScreenSaverSettings, int> set)
+        {
+            var slider = new Slider { Minimum = minimum, Maximum = maximum, IsSnapToTickEnabled = true, TickFrequency = 1 };
+            var value = new TextBlock { Width = 40, TextAlignment = TextAlignment.Right };
+            value.SetBinding(TextBlock.TextProperty, new Binding(nameof(Slider.Value)) { Source = slider });
+            DockPanel.SetDock(value, Dock.Right);
+
+            var row = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
+            row.Children.Add(value);
+            row.Children.Add(slider);
+
+            panel.Children.Add(new TextBlock { Text = label, Margin = new Thickness(0, sliders.Count == 0 ? 0 : 12, 0, 0) });
+            panel.Children.Add(row);
+            sliders.Add((slider, get, set));
+
+            return slider;
         }
 
         private void DisplaySettings(ScreenSaverSettings settings)
         {
             CharacterSizeSlider.Value = settings.CharacterSize;
             DensitySlider.Value = settings.Density;
+            GlowBox.IsChecked = settings.Glow;
+            DisplaySliders(glowSliders, settings);
+            DisplayAdvancedSettings(settings);
 
             foreach (var (set, box) in characterSetBoxes)
             {
                 box.IsChecked = settings.CharacterSets.HasFlag(set);
             }
+
+            baseColor = settings.BaseColorValue;
+            SingleColorRadio.IsChecked = settings.ColorMode == ColorMode.SingleColor;
+            ColorCycleRadio.IsChecked = settings.ColorMode == ColorMode.ColorCycle;
+            RainbowDropsRadio.IsChecked = settings.ColorMode == ColorMode.RainbowDrops;
+            UpdateColorPreview();
+        }
+
+        private void DisplayAdvancedSettings(ScreenSaverSettings settings)
+        {
+            DisplaySliders(advancedSliders, settings);
+        }
+
+        private static void DisplaySliders(
+            List<(Slider Slider, Func<ScreenSaverSettings, int> Get, Action<ScreenSaverSettings, int> Set)> sliders, ScreenSaverSettings settings)
+        {
+            foreach (var (slider, get, _) in sliders)
+            {
+                slider.Value = get(settings);
+            }
+        }
+
+        private ColorMode SelectedColorMode =>
+            ColorCycleRadio.IsChecked == true ? ColorMode.ColorCycle
+            : RainbowDropsRadio.IsChecked == true ? ColorMode.RainbowDrops
+            : ColorMode.SingleColor;
+
+        private void UpdateColorPreview()
+        {
+            Color[] palette = ColorPalette.Create(baseColor);
+            Color buttonColor = palette[ColorPalette.BaseLevel];
+            ColorButton.Background = new SolidColorBrush(buttonColor);
+            ColorButton.Foreground = buttonColor.R * 0.2126 + buttonColor.G * 0.7152 + buttonColor.B * 0.0722 < 128 ? Brushes.White : Brushes.Black;
+
+            // One color shows its brightness levels, the other modes the hues they run through.
+            IEnumerable<Color> colors = SelectedColorMode == ColorMode.SingleColor
+                ? palette
+                : Enumerable.Range(0, ColorPalette.Size).Select(i => ColorPalette.FromHue(120 + i * 360.0 / ColorPalette.Size));
+
+            ColorPreview.Children.Clear();
+
+            foreach (Color color in colors)
+            {
+                ColorPreview.Children.Add(new Rectangle { Fill = new SolidColorBrush(color) });
+            }
+        }
+
+        private void ColorModeChecked(object sender, RoutedEventArgs e)
+        {
+            UpdateColorPreview();
+        }
+
+        private void ColorButtonClick(object sender, RoutedEventArgs e)
+        {
+            using var dialog = new System.Windows.Forms.ColorDialog
+            {
+                Color = System.Drawing.Color.FromArgb(baseColor.R, baseColor.G, baseColor.B),
+                FullOpen = true,
+            };
+
+            var owner = new System.Windows.Forms.NativeWindow();
+            owner.AssignHandle(new WindowInteropHelper(this).Handle);
+
+            try
+            {
+                if (dialog.ShowDialog(owner) != System.Windows.Forms.DialogResult.OK)
+                {
+                    return;
+                }
+            }
+            finally
+            {
+                owner.ReleaseHandle();
+            }
+
+            baseColor = Color.FromRgb(dialog.Color.R, dialog.Color.G, dialog.Color.B);
+            SingleColorRadio.IsChecked = true;
+            UpdateColorPreview();
         }
 
         private void DefaultsClick(object sender, RoutedEventArgs e)
         {
             DisplaySettings(new ScreenSaverSettings());
+        }
+
+        private void AdvancedDefaultsClick(object sender, RoutedEventArgs e)
+        {
+            DisplayAdvancedSettings(new ScreenSaverSettings());
         }
 
         private void OkClick(object sender, RoutedEventArgs e)
@@ -57,7 +210,15 @@ namespace MatrixScreenSaver
                 CharacterSize = (int)CharacterSizeSlider.Value,
                 Density = (int)DensitySlider.Value,
                 CharacterSets = CharacterSets.None,
+                ColorMode = SelectedColorMode,
+                BaseColor = ScreenSaverSettings.ToHex(baseColor),
+                Glow = GlowBox.IsChecked == true,
             };
+
+            foreach (var (slider, _, set) in glowSliders.Concat(advancedSliders))
+            {
+                set(settings, (int)slider.Value);
+            }
 
             foreach (var (set, box) in characterSetBoxes)
             {
