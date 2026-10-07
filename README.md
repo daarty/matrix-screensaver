@@ -3,6 +3,18 @@
 Digital rain in the style of The Matrix as a Windows screensaver, written in WPF on .NET 10.
 Based on WBS Screensaver by Wm. Barrett Simms.
 
+## Features
+
+- Runs on all monitors at once, each window fitted exactly to its own monitor and DPI scaling.
+- Live preview in the Screen Saver Settings dialog; the settings window scrolls when it does not fit the screen.
+- Character sets: Latin, Katakana, Hiragana, digits, symbols, Greek and Cyrillic, in any combination.
+- Character size from 8 to 64 pixels, drop density from 1 to 20 new drops per column and minute.
+- Colors: one fixed color with a color picker, a cycle through the whole color wheel, or every drop in its own color, each with a live preview strip.
+- Glow around the bright characters, adjustable in intensity, radius and starting brightness level.
+- Advanced rain behavior: per-drop speed and trail length ranges, drops starting in the middle of the screen, rare flash drops racing down the whole screen, drops ending early, fading characters that stick to their color, and flicker drops that stay in place and may run down afterwards.
+- Frame rate from 1 to 60 frames per second.
+- Settings persist in `%APPDATA%\MatrixScreenSaver\settings.json`; a broken file just falls back to the defaults.
+
 ## Build
 
 ```
@@ -30,3 +42,7 @@ it, select another screensaver and delete the file. The settings are stored in
 | `/s` | Run the screensaver on all monitors. Mouse movement, a click or a key ends it. |
 | `/c`, none | Show the settings. |
 | `/p <HWND>` | Draw the preview into the given window. |
+
+## License
+
+MIT, see [LICENSE](LICENSE). Based on WBS Screensaver by Wm. Barrett Simms.
