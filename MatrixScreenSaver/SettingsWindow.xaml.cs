@@ -24,6 +24,10 @@ namespace MatrixScreenSaver
         {
             InitializeComponent();
 
+            // Keep the window within the work area when SizeToContent would
+            // grow it past the screen; the ScrollViewer then takes over.
+            MaxHeight = SystemParameters.WorkArea.Height;
+
             CharacterSizeSlider.Minimum = ScreenSaverSettings.MinCharacterSize;
             CharacterSizeSlider.Maximum = ScreenSaverSettings.MaxCharacterSize;
             DensitySlider.Minimum = ScreenSaverSettings.MinDensity;
