@@ -1,3 +1,4 @@
+// Copyright (c) 2026 daarty
 using System;
 using System.IO;
 using System.Text.Json;

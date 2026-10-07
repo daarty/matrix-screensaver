@@ -3,6 +3,9 @@
 Digital rain in the style of The Matrix as a Windows screensaver, written in WPF on .NET 10.
 Based on WBS Screensaver by Wm. Barrett Simms.
 
+It began as a hobby project, slept through a long hibernation phase, and was finally finished
+to my satisfaction with heavy use of Claude and Mistral.
+
 ## Features
 
 - Runs on all monitors at once, each window fitted exactly to its own monitor and DPI scaling.

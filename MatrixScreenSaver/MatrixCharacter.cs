@@ -1,4 +1,5 @@
-﻿using System;
+﻿// Copyright (c) 2026 daarty
+using System;
 using System.Collections.Generic;
 using System.Linq;
 

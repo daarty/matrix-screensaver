@@ -12,10 +12,10 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Resources\MatrixScreenSaver.ico</ApplicationIcon>
 
-    <Company>ecth oo'</Company>
+    <Company>daarty</Company>
     <Product>MatrixScreenSaver</Product>
-    <Trademark>ecth oo'</Trademark>
-    <Copyright>Copyright © 2017</Copyright>
+    <Trademark>daarty</Trademark>
+    <Copyright>Copyright © 2026 daarty</Copyright>
     <Version>1.0.0</Version>
   </PropertyGroup>
 

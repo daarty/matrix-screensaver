@@ -1,4 +1,5 @@
-﻿// Copyright (c) 2015 Wm. Barrett Simms wbsimms.com
+﻿// Copyright (c) 2026 daarty
+// Copyright (c) 2015 Wm. Barrett Simms wbsimms.com
 //
 // Permission is hereby granted, free of charge, to any person
 // obtaining a copy of this software and associated documentation

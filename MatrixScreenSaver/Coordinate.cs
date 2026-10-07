@@ -1,4 +1,5 @@
-﻿namespace MatrixScreenSaver
+﻿// Copyright (c) 2026 daarty
+namespace MatrixScreenSaver
 {
     public class Coordinate
     {
